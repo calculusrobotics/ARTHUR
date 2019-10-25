@@ -61,6 +61,20 @@ public class BBTalonSRX extends BBMotorController {
     }
 
 
+
+    @Override
+    protected double getTimePeriod() {
+        return 0.1; // ticksPer100ms -> 0.1s
+    }
+
+
+
+    @Override
+    public double getVelocity_ticks_per() {
+        return MOTOR.getSelectedSensorVelocity(); // thank you CTRE for not using revs per min unlike SOMEBODY
+    }
+
+
     
     @Override
     public double getVoltage() {

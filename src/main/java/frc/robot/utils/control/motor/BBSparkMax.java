@@ -76,6 +76,20 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
+    protected double getTimePeriod() {
+        return 60; // RPM -> minutes -> 60 seconds
+    }
+
+
+
+    @Override
+    public double getVelocity_ticks_per() {
+        return revsToTicks(encoder.getVelocity()); // I'm somebody
+    }
+
+
+
+    @Override
     public double getVoltage() {
         return MOTOR.getBusVoltage();
     }

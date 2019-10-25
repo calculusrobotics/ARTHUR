@@ -206,6 +206,52 @@ public abstract class BBMotorController {
         MotionMagic // TODO: SmartMotion?
     }
 
+
+
+    /**
+     * What time period is used for velocity measurements, in seconds?
+     */
+    protected abstract double getTimePeriod();
+    protected final double TIME_PERIOD = getTimePeriod();
+
+
+
+    /** Default to 1s. For example, timeScale=60 means measurements in <whatever>PM */
+    protected double timeScale = 1;
+
+    public void setTimeScale(double scale) {
+        timeScale = scale;
+    }
+
+
+
+    /**
+     * Get the velocity in native ticks per unit time of encoder
+     * 
+     * @return velocity in native ticks per unit time of encoder
+     */
+    public abstract double getVelocity_ticks_per();
+
+    /**
+     * Get the velocity of the object in preferred units of the object
+     */
+    public double getVelocity() {
+        // ticks per TIME_PERIOD
+        double vel_ticks_per_whatever = getVelocity_ticks_per();
+        // ticks/whatever * whatever/second = ticks/second
+        // ticks/whatever / (second/whatever) = ticks/second
+        // ticks/whatever / TIME_PERIOD = ticks/second
+        double vel_ticks_per_second = vel_ticks_per_whatever / TIME_PERIOD;
+        // preferred units
+        double vel = ticksToObjectUnits(vel_ticks_per_second) * timeScale;
+
+        return vel;
+    }
+
+
+
+
+    // haha line 254
     /**
      * Set the position in revolutions (OF ENCODER - not necessarily of thing being controller). 
      */
@@ -237,12 +283,25 @@ public abstract class BBMotorController {
      * 
      * @return encoder ticks converted to encoder revs
      */
-    public double ticksToRevs(int ticks) {
-        return ((double) ticks) / sensor.getTicksPerRev();
+    public double ticksToRevs(double ticks) {
+        return ticks / sensor.getTicksPerRev();
     }
 
-    public double ticksToObjectUnits(int ticks) {
+    /**
+     * Convert encoder ticks to preferred units
+     * 
+     * @param ticks encoder ticks
+     * 
+     * @return preferred units
+     */
+    public double ticksToObjectUnits(double ticks) {
         double revs = ticksToRevs(ticks);
+        // encoder teeth / object teeth = ratio
+        // encoder teeth = ratio * object teeth
+        // 1 tooth angle = 2pi/(teeth) -> teeth = 2pi/(1 tooth angle)
+        // 1/encoder tooth angle = ratio * 1/object tooth angle
+        // object tooth angle = encoder tooth angle * ratio
+        // object angle = encoder angle * ratio (no I didn't divide by "tooth")
         double objectRevs = revs * gearRatio;
         double objectUnits = objectRevs * lengthScale;
 
