@@ -2,6 +2,7 @@ package frc.robot.utils.control.motor;
 
 
 
+import frc.robot.utils.control.ControlType;
 import frc.robot.utils.control.pidf.PID;
 
 import frc.robot.utils.control.encoder.*;
@@ -42,18 +43,6 @@ public abstract class BBMotorController {
      * as you read from top to bottom. Fields will be declared as needed more the methods
      * that follow
      */
-
-
-    
-    public void addEncoder(SensorType sensor) {
-        if (sensor instanceof QuadratureEncoder) {
-            addQuadraticEncoder((QuadratureEncoder) sensor);
-        }
-    }
-
-
-
-    protected abstract void addQuadraticEncoder(QuadratureEncoder sensor);
 
     
 
@@ -117,6 +106,101 @@ public abstract class BBMotorController {
         return activePIDSlot;
     }
 
+
+
+    /**
+     * Command the position of the motor to a specified amount of encoder ticks
+     * 
+     * @param ticks encoder ticks to command the motor to
+     * @param controlMethod control method (MotionMagic or PID) to be used
+     */
+    protected abstract void setPosition_ticks(int ticks, ControlType.Position controlMethod);
+
+
+
+
+    /** Type of encoder attached the to motor */
+    protected SensorType sensor;
+
+    public void addEncoder(SensorType sensor) {
+        this.sensor = sensor;
+
+        if (sensor instanceof QuadratureEncoder) {
+            addQuadratureEncoder((QuadratureEncoder) sensor);
+        }
+    }
+
+
+
+    protected abstract void addQuadratureEncoder(QuadratureEncoder sensor);
+
+
+
+    /**
+     * Return the position read on the encoder in ticks
+     * 
+     * @return position on the encoder in ticks
+     */
+    public abstract int getPosition_ticks();
+
+    /**
+     * Return the position read on the encoder in revolutions
+     * 
+     * @return position on the encoder in revolutions
+     */
+    public double getPosition_revs() {
+        return getPosition_ticks() / sensor.getTicksPerRev();
+    }
+
+
+
+    /** Ratio of prefered length units to OBJECT (not ENCODER/MOTOR) revolutions (default = revs) */
+    protected double lengthScale = 1;
+
+    /**
+     * Gear ratio, ratio * encoder revs = object revs
+     * 
+     * In the case that the encoder has a gear ratio to the motor, this should
+     * be ratio * encoder revs = object revs
+     */
+    protected double gearRatio = 1;
+
+    /**
+     * Set the gear ratio from the motor to the object the motor is moving
+     * 
+     * In the case that the encoder has a gear ratio to the motor, this should
+     * be ratio * encoder revs = object revs
+     */
+    public void setGearRatio(double ratio) {
+        gearRatio = ratio;
+    }
+
+
+
+    /** Set the ratio of length units to use to revolutions */
+    public void setLengthScale(double scale) {
+        lengthScale = scale;
+    }
+
+    /** Specify the radius of the motion for object the motor is moving */
+    public void setRadius(double radius) {
+        // 1 rev = 2*pi*r[distance units]
+        lengthScale = 2 * Math.PI * radius;
+    }
+
+
+
+    /**
+     * Return the position read on the encoder in preferred units
+     * 
+     * @return position on the encoder in preferred units
+     */
+    public double getPosition() {
+        return ticksToObjectUnits(getPosition_ticks());
+    }
+
+
+
     public enum PositionControl {
         Position,
         MotionMagic // TODO: SmartMotion?
@@ -132,4 +216,36 @@ public abstract class BBMotorController {
 
     /** Get the percentage (0 to 1) of the robot's voltage that is seen by the motor controller*/
     public abstract double getPercentVoltage();
+
+
+
+    /** 
+     * Convert ENCODER revolutions to encoder ticks/native units
+     * 
+     * @param revs revolutions
+     * 
+     * @return encoder revs converted to encoder ticks
+     */
+    public int revsToTicks(double revs) {
+        return (int) (revs * sensor.getTicksPerRev() + 0.5); // round
+    }
+
+    /**
+     * Convert ENCODER ticks to ENCODER revolutions
+     * 
+     * @param ticks encoder ticks
+     * 
+     * @return encoder ticks converted to encoder revs
+     */
+    public double ticksToRevs(int ticks) {
+        return ((double) ticks) / sensor.getTicksPerRev();
+    }
+
+    public double ticksToObjectUnits(int ticks) {
+        double revs = ticksToRevs(ticks);
+        double objectRevs = revs * gearRatio;
+        double objectUnits = objectRevs * lengthScale;
+
+        return objectUnits;
+    }
 }

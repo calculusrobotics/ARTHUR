@@ -4,9 +4,12 @@ package frc.robot.utils.control.motor;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
+import frc.robot.utils.control.ControlType;
+
 import frc.robot.utils.control.encoder.QuadratureEncoder;
 
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
+import com.ctre.phoenix.motorcontrol.ControlMode;
 
 
 public class BBTalonSRX extends BBMotorController {
@@ -26,9 +29,35 @@ public class BBTalonSRX extends BBMotorController {
 
 
     @Override
-    protected void addQuadraticEncoder(QuadratureEncoder sensor) {
+    public void setPosition_ticks(int ticks, ControlType.Position controlMethod) {
+        ControlMode mode;
+
+        switch (controlMethod) {
+            case PID: {
+                mode = ControlMode.Position;
+                break;
+            }
+            case MotionMagic: {
+                mode = ControlMode.MotionMagic;
+                break;
+            }
+            default: {
+                return;
+            }
+        }
+
+        MOTOR.set(mode, ticks);
+    }
+
+    @Override
+    protected void addQuadratureEncoder(QuadratureEncoder sensor) {
         MOTOR.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder);
         MOTOR.setSelectedSensorPosition(0);
+    }
+
+    @Override
+    public int getPosition_ticks() {
+        return MOTOR.getSelectedSensorPosition();
     }
 
 

@@ -2,9 +2,11 @@ package frc.robot.utils.control.motor;
 
 
 
+import frc.robot.utils.control.ControlType;
 import frc.robot.utils.control.encoder.QuadratureEncoder;
 
 import com.revrobotics.CANEncoder;
+import com.revrobotics.CANPIDController;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.EncoderType;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
@@ -18,6 +20,7 @@ import edu.wpi.first.wpilibj.RobotController;
  */
 public class BBSparkMax extends BBMotorController {
     private final CANSparkMax MOTOR;
+    private final CANPIDController PID_CONTROLLER;
 
 
 
@@ -27,17 +30,50 @@ public class BBSparkMax extends BBMotorController {
 
     public BBSparkMax(int deviceID, MotorType type) {
         MOTOR = new CANSparkMax(deviceID, type);
+
+        PID_CONTROLLER = MOTOR.getPIDController();
     }
 
 
 
     @Override
-    protected void addQuadraticEncoder(QuadratureEncoder sensor) {
+    public void setPosition_ticks(int ticks, ControlType.Position controlMethod) {
+        // RevRobotics also has a ControlType class :/
+        com.revrobotics.ControlType mode;
+
+        // get encoder revolutions because SparkMax uses revolutions as default unit
+        double revs = ticksToRevs(ticks);
+
+        switch (controlMethod) {
+            case PID: {
+                mode = com.revrobotics.ControlType.kPosition;
+                break;
+            }
+            case MotionMagic: {
+                mode = com.revrobotics.ControlType.kSmartMotion;
+                break;
+            }
+            default: {
+                return;
+            }
+        }
+
+        PID_CONTROLLER.setReference(revs, mode);
+    }
+
+    @Override
+    protected void addQuadratureEncoder(QuadratureEncoder sensor) {
         encoder = MOTOR.getEncoder(EncoderType.kQuadrature, sensor.getCPR());
         encoder.setPosition(0);
     }
 
-    
+    @Override
+    public int getPosition_ticks() {
+        // SparkMax returns position in revs
+        return (int) (encoder.getPosition() * sensor.getTicksPerRev());
+    }
+
+
 
     @Override
     public double getVoltage() {
