@@ -2,8 +2,10 @@ package frc.robot.utils.control.motor;
 
 
 
-import frc.robot.utils.control.ControlType;
+import frc.robot.utils.control.controltype.ControlType;
 import frc.robot.utils.control.encoder.QuadratureEncoder;
+import frc.robot.utils.control.pidf.PID;
+import frc.robot.utils.control.pidf.PIDF;
 
 import com.revrobotics.CANEncoder;
 import com.revrobotics.CANPIDController;
@@ -22,6 +24,8 @@ public class BBSparkMax extends BBMotorController {
     private final CANSparkMax MOTOR;
     private final CANPIDController PID_CONTROLLER;
 
+    private int pidSlot;
+
 
 
     private CANEncoder encoder;
@@ -37,7 +41,31 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public void setPosition_ticks(int ticks, ControlType.Position controlMethod) {
+    public void trySetPID(int pidSlot) {
+        PID pid = pidConstants.get(pidSlot);
+
+        PID_CONTROLLER.setP(pid.getKP(), pidSlot);
+        PID_CONTROLLER.setI(pid.getKI(), pidSlot);
+        PID_CONTROLLER.setD(pid.getKD(), pidSlot);
+
+        if (pid instanceof PIDF) {
+            PIDF pidf = (PIDF) pid;
+
+            PID_CONTROLLER.setFF(pidf.getKF(), pidSlot);
+        }
+    }
+
+
+
+    @Override
+    public void setPIDSlot(int pidSlot) {
+        this.pidSlot = pidSlot;
+    }
+
+
+
+    @Override
+    public void cmdPosition_ticks(int ticks, ControlType controlMethod) {
         // RevRobotics also has a ControlType class :/
         com.revrobotics.ControlType mode;
 
@@ -58,7 +86,7 @@ public class BBSparkMax extends BBMotorController {
             }
         }
 
-        PID_CONTROLLER.setReference(revs, mode);
+        PID_CONTROLLER.setReference(revs, mode, pidSlot);
     }
 
     @Override
@@ -83,7 +111,7 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public double getVelocity_ticks_per() {
+    public double getVelocity_nu() {
         return revsToTicks(encoder.getVelocity()); // I'm somebody
     }
 
@@ -98,4 +126,19 @@ public class BBSparkMax extends BBMotorController {
     public double getPercentVoltage() {
         return getVoltage() / RobotController.getBatteryVoltage();
     }
+
+
+
+    @Override
+    public void follow(BBMotorController motorController) {
+        if (motorController instanceof BBSparkMax) {
+            CANSparkMax leader = ((BBSparkMax) motorController).getSparkMax();
+
+            MOTOR.follow(leader);
+        }
+    }
+
+
+
+    public CANSparkMax getSparkMax() { return MOTOR; }
 }

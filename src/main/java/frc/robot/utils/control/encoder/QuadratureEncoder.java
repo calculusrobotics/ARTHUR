@@ -10,7 +10,7 @@ public class QuadratureEncoder extends SensorType {
 
     /** Type of encoder */
     public enum EncoderType {
-        AMT201 (2048);
+        AMT (2048); // AMT-201 and AMT-102 seem to have this, so probably all...
 
 
 

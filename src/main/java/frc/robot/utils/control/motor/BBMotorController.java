@@ -2,10 +2,17 @@ package frc.robot.utils.control.motor;
 
 
 
-import frc.robot.utils.control.ControlType;
+import frc.robot.utils.data.DataWindow;
+
+import frc.robot.utils.control.controltype.ControlType;
 import frc.robot.utils.control.pidf.PID;
+import frc.robot.utils.control.motionprofile.motionmagic.MotionMagic;
+import frc.robot.utils.control.MotorInfo;
 
 import frc.robot.utils.control.encoder.*;
+
+import frc.robot.utils.math.units.BaseUnit;
+import frc.robot.utils.math.units.Units;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -68,6 +75,22 @@ public abstract class BBMotorController {
      */
     protected HashMap<String, Integer> pidNames;
 
+
+
+    /** MotionMagic parameters to be used */
+    protected MotionMagic motionMagic;
+
+
+
+    /**
+     * Try to set PID constants of the motor upon addition to pidConstants ArrayList
+     * 
+     * Will only work for first few (2 for CTRE) slots until there are no more available
+     * PID slots in the wrapped motor controller and will have to be changed by the
+     * BBMotorController.
+     */
+    protected abstract void trySetPID(int pidID);
+
     /**
      * Add a set of PID constants to the motor controller's stored set
      * 
@@ -98,6 +121,8 @@ public abstract class BBMotorController {
         // name corresponds to id-th set in pidConstants
         pidNames.put(name, id);
 
+        trySetPID(id);
+
         return id;
     }
 
@@ -108,13 +133,36 @@ public abstract class BBMotorController {
 
 
 
+    public abstract void setPIDSlot(int pidSlot);
+
+
+
     /**
      * Command the position of the motor to a specified amount of encoder ticks
      * 
      * @param ticks encoder ticks to command the motor to
      * @param controlMethod control method (MotionMagic or PID) to be used
      */
-    protected abstract void setPosition_ticks(int ticks, ControlType.Position controlMethod);
+    protected abstract void cmdPosition_ticks(double ticks, ControlType controlMethod);
+
+    public void cmdPosition(double pos, ControlType controlMethod, int pidSlot) {
+        if (controlMethod.getVariable() != ControlType.Variable.Position) {
+            return;
+        }
+
+        setPIDSlot(pidSlot);
+
+        // convert to ticks
+        cmdPosition_ticks(toNU_pos(pos), controlMethod);
+    }
+
+    public void cmdPosition(double pos, ControlType controlMethod) {
+        if (controlMethod.getVariable() != ControlType.Variable.Position) {
+            return;
+        }
+
+        cmdPosition(pos, controlMethod, 0);
+    }
 
 
 
@@ -128,6 +176,8 @@ public abstract class BBMotorController {
         if (sensor instanceof QuadratureEncoder) {
             addQuadratureEncoder((QuadratureEncoder) sensor);
         }
+
+        defineUnits();
     }
 
 
@@ -154,6 +204,24 @@ public abstract class BBMotorController {
 
 
 
+    /** Configure MotionMagic parameters to use with native units */
+    protected abstract void configMotionMagic_nu(double acc, double vel);
+
+    public void configMotionMagic(MotionMagic mm) {
+        double acc_pu = mm.getAcceleration();
+        double vel_pu = mm.getCruiseVelocity();
+
+        // (ticks / sec^2) * (TIME_PERIOD sec / 1st native time unit) * (SECOND_TIME_PERIOD sec / 2nd native time unit)
+        double acc_nu = toNU_acc(acc_pu);
+        double vel_nu = toNU_vel(vel_pu);
+
+        configMotionMagic_nu(acc_nu, vel_nu);
+
+        motionMagic = mm;
+    }
+
+
+
     /** Ratio of prefered length units to OBJECT (not ENCODER/MOTOR) revolutions (default = revs) */
     protected double lengthScale = 1;
 
@@ -164,6 +232,7 @@ public abstract class BBMotorController {
      * be ratio * encoder revs = object revs
      */
     protected double gearRatio = 1;
+    // TODO: do we want gear ratio between motor and encoder too? doesn't really matter but
 
     /**
      * Set the gear ratio from the motor to the object the motor is moving
@@ -188,6 +257,11 @@ public abstract class BBMotorController {
         lengthScale = 2 * Math.PI * radius;
     }
 
+    public void setLengthScaleDeg() {
+        // 360 deg = 1 rev
+        lengthScale = 360;
+    }
+
 
 
     /**
@@ -196,7 +270,7 @@ public abstract class BBMotorController {
      * @return position on the encoder in preferred units
      */
     public double getPosition() {
-        return ticksToObjectUnits(getPosition_ticks());
+        return toPU_pos(getPosition_ticks());
     }
 
 
@@ -213,10 +287,12 @@ public abstract class BBMotorController {
      */
     protected abstract double getTimePeriod();
     protected final double TIME_PERIOD = getTimePeriod();
+    protected abstract double getSecondTimePeriod();
+    protected final double SECOND_TIME_PERIOD = getSecondTimePeriod();
 
 
 
-    /** Default to 1s. For example, timeScale=60 means measurements in <whatever>PM */
+    /** Default to 1s. For example, timeScale=60 means measurements in (whatever)PM. Seconds per time unit*/
     protected double timeScale = 1;
 
     public void setTimeScale(double scale) {
@@ -226,42 +302,40 @@ public abstract class BBMotorController {
 
 
     /**
-     * Get the velocity in native ticks per unit time of encoder
+     * Get the velocity in native encoder units
      * 
-     * @return velocity in native ticks per unit time of encoder
+     * @return velocity in native encoder units
      */
-    public abstract double getVelocity_ticks_per();
+    public abstract double getVelocity_nu();
 
     /**
      * Get the velocity of the object in preferred units of the object
      */
     public double getVelocity() {
         // ticks per TIME_PERIOD
-        double vel_ticks_per_whatever = getVelocity_ticks_per();
-        // ticks/whatever * whatever/second = ticks/second
-        // ticks/whatever / (second/whatever) = ticks/second
-        // ticks/whatever / TIME_PERIOD = ticks/second
-        double vel_ticks_per_second = vel_ticks_per_whatever / TIME_PERIOD;
-        // preferred units
-        double vel = ticksToObjectUnits(vel_ticks_per_second) * timeScale;
-
-        return vel;
+        double vel_nu = getVelocity_nu();
+        
+        return toPU_vel(vel_nu);
     }
 
 
 
-
-    // haha line 254
     /**
      * Set the position in revolutions (OF ENCODER - not necessarily of thing being controller). 
      */
-    //public abstract void setPosition(double revs);
+    //public abstract void cmdPosition(double revs);
 
+
+    
     /** Get the voltage drop across the motor in volts (V) */
     public abstract double getVoltage();
 
     /** Get the percentage (0 to 1) of the robot's voltage that is seen by the motor controller*/
     public abstract double getPercentVoltage();
+
+
+
+    public abstract void follow(BBMotorController motorController);
 
 
 
@@ -287,24 +361,28 @@ public abstract class BBMotorController {
         return ticks / sensor.getTicksPerRev();
     }
 
-    /**
-     * Convert encoder ticks to preferred units
-     * 
-     * @param ticks encoder ticks
-     * 
-     * @return preferred units
-     */
-    public double ticksToObjectUnits(double ticks) {
-        double revs = ticksToRevs(ticks);
-        // encoder teeth / object teeth = ratio
-        // encoder teeth = ratio * object teeth
-        // 1 tooth angle = 2pi/(teeth) -> teeth = 2pi/(1 tooth angle)
-        // 1/encoder tooth angle = ratio * 1/object tooth angle
-        // object tooth angle = encoder tooth angle * ratio
-        // object angle = encoder angle * ratio (no I didn't divide by "tooth")
-        double objectRevs = revs * gearRatio;
-        double objectUnits = objectRevs * lengthScale;
+    private BaseUnit tick;
+    private BaseUnit velocityTime = new BaseUnit(Units.S, 1/TIME_PERIOD);
+    private BaseUnit accelerationTime = new BaseUnit(Units.S, 1/SECOND_TIME_PERIOD);
 
-        return objectUnits;
+    private BaseUnit vel_nu;
+    private BaseUnit acc_nu;
+
+    public void defineUnits() {
+        tick = new BaseUnit(Units.REV, sensor.getTicksPerRev());
+        vel_nu = (new UnitBuilder()).num(tick).denom(velocityTime);
+        acc_nu = (new UnitBuilder()).num(tick).denom(accelerationTime);
     }
+
+
+
+
+
+
+
+
+
+
+    protected boolean hasDiagnostics;
+    protected DataWindow<MotorInfo> diagnosticData;
 }

@@ -2,7 +2,7 @@ package frc.robot.utils.control.pidf;
 
 
 
-import frc.robot.utils.control.ControlType;
+import frc.robot.utils.control.controltype.ControlType;
 
 
 
