@@ -1,19 +1,20 @@
 package frc.robot.utils.math.units;
 
+import frc.robot.utils.math.units.BaseUnit;
+import frc.robot.utils.math.units.BaseUnit.Dimension;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
 import java.util.HashMap;
-
-import frc.robot.utils.math.units.BaseUnit.Dimension;
 
 
 
 /**
  * Unit formed by multiplying/dividing BaseUnits
  */
-public class CompositeUnit {
-    /*
+public class Unit {
+	/*
      * instead of storing numerator units and denominator units, we can store
      * numerator and denominator units PER dimension. This allows us to group
      * units into dimensions. The reason this is helpful is as follows:
@@ -33,6 +34,10 @@ public class CompositeUnit {
     private final HashMap<Dimension, ArrayList<BaseUnit>> NUMERATOR;
     /** BaseUnits in denominator grouped by dimension they measure */
     private final HashMap<Dimension, ArrayList<BaseUnit>> DENOMINATOR;
+
+    private final ArrayList<BaseUnit> NUMERATOR_LIST;
+    private final ArrayList<BaseUnit> DENOMINATOR_LIST;
+
     /**
      * Total count of how many of each dimension are in the unit.
      * For example, kg m^2 -> Mass: 1, Length: 2
@@ -50,7 +55,9 @@ public class CompositeUnit {
     /** Whether to store conversions to other units. Trade-off between computation time and memory space. */
     private boolean storeConversions = false;
     /** Stored conversions from a CompositeUnit of the same Dimension to this unit/other unit */
-    private HashMap<CompositeUnit, Double> conversions = new HashMap<CompositeUnit, Double>();
+    private HashMap<Unit, Double> conversions = new HashMap<Unit, Double>();
+
+
 
 
 
@@ -61,12 +68,15 @@ public class CompositeUnit {
      * 
      * @param numerator list of numerator units
      * @param denominator list of denominator units
+     * @param coeff0
      */
-    public CompositeUnit(List<BaseUnit> numerator, List<BaseUnit> denominator) {
+    public Unit(List<BaseUnit> numerator, List<BaseUnit> denominator, double coeff0) {
         HashMap<Dimension, ArrayList<BaseUnit>> nums   = new HashMap<Dimension, ArrayList<BaseUnit>>();
         HashMap<Dimension, ArrayList<BaseUnit>> denoms = new HashMap<Dimension, ArrayList<BaseUnit>>();
+        ArrayList<BaseUnit> numsList = new ArrayList<BaseUnit>();
+        ArrayList<BaseUnit> denomsList = new ArrayList<BaseUnit>();
         HashMap<Dimension, Integer> dims = new HashMap<Dimension, Integer>();
-        double coeff = 1;
+        double coeff = coeff0;
 
         Dimension[] dimList = Dimension.values();
 
@@ -87,8 +97,9 @@ public class CompositeUnit {
                 BaseUnit denom = denominator.get(j);
 
                 if (num.getDimension() == denom.getDimension()) {
-                    // num / denom = num.per(denom)
-                    coeff *= num.per(denom);
+                	// perDenom nums/denom = 1
+                	// nums/denom = 1/perDenom
+                    coeff /= num.per(denom);
 
                     numerator.remove(i);
                     denominator.remove(j);
@@ -104,6 +115,7 @@ public class CompositeUnit {
 
             nums.get(dim).add(num);
             dims.put(dim, dims.get(dim) + 1);
+            numsList.add(num);
         }
 
         for (int i = 0; i < denominator.size(); i++) {
@@ -112,17 +124,42 @@ public class CompositeUnit {
 
             denoms.get(dim).add(denom);
             dims.put(dim, dims.get(dim) - 1);
+            denomsList.add(denom);
         }
 
         NUMERATOR = nums;
         DENOMINATOR = denoms;
         DIMENSIONS = dims;
         COEFF = coeff;
+        NUMERATOR_LIST = numsList;
+        DENOMINATOR_LIST = denomsList;
     }
 
-    public CompositeUnit(BaseUnit[] numerator, BaseUnit[] denominator) {
-        this(Arrays.asList(numerator), Arrays.asList(denominator));
+    /**
+     * Warning: this constructor may modify numerator and denominator variables
+     * 
+     * Create a CompositeUnit with a list of numerator and denominator units
+     * 
+     * @param numerator list of numerator units
+     * @param denominator list of denominator units
+     */
+    public Unit(List<BaseUnit> numerator, List<BaseUnit> denominator) {
+        this(numerator, denominator, 1);
     }
+
+    public Unit(BaseUnit[] numerator, BaseUnit[] denominator, double coeff0) {
+        this(Arrays.asList(numerator), Arrays.asList(denominator), coeff0);
+    }
+
+    public Unit(BaseUnit[] numerator, BaseUnit[] denominator) {
+        this(numerator, denominator, 1);
+    }
+    
+    public Unit(Unit unit2, double coeff0) {
+    	this(unit2.getNumeratorList(), unit2.getDenominatorList(), coeff0 * unit2.getCoefficient());
+    }
+
+
 
 
 
@@ -134,15 +171,23 @@ public class CompositeUnit {
         return NUMERATOR.get(dim);
     }
 
+    public ArrayList<BaseUnit> getNumeratorList() {
+        return (ArrayList<BaseUnit>) NUMERATOR_LIST.clone(); // heck java
+    }
+
     public ArrayList<BaseUnit> getDenominatorTerms(Dimension dim) {
         return DENOMINATOR.get(dim);
+    }
+
+    public ArrayList<BaseUnit> getDenominatorList() {
+        return (ArrayList<BaseUnit>) DENOMINATOR_LIST.clone(); // heck java
     }
 
     public int getDimension(Dimension dim) {
         return DIMENSIONS.get(dim);
     }
 
-    public boolean isCompatible(CompositeUnit unit2) {
+    public boolean isCompatible(Unit unit2) {
         Dimension[] dimList = Dimension.values();
 
         for (int i = 0; i < dimList.length; i++) {
@@ -156,7 +201,11 @@ public class CompositeUnit {
         return true;
     }
 
-    public double per(CompositeUnit unit2) {
+    public boolean isCompatible(BaseUnit bu) {
+        return isCompatible(bu.getUnit());
+    }
+
+    public double per(Unit unit2) {
         if (storeConversions) {
             Double conv = conversions.get(unit2);
 
@@ -169,11 +218,15 @@ public class CompositeUnit {
             return 0; // ig
         }
 
-        // units = coeff * nums / denoms
-        // units2 = coeff2 * nums2 / denoms2
-        // units/unit2 = coeff/coeff2 * nums/nums2 * denoms2/denoms
+        // x = this unit/that unit
+        // 1 unit = x COEFF nums/denoms = COEFF2 nums2/denoms2
+        // x = COEFF2/COEFF * nums2/nums / (denoms2/denoms)
+        // nums.per(nums2) nums = nums2
+        // nums2/nums = nums.per(nums2)
 
-        double per = COEFF / unit2.getCoefficient();
+        double per = unit2.getCoefficient() / COEFF;
+        System.out.println(COEFF);
+        System.out.println(unit2.getCoefficient());
 
         Dimension[] dimList = Dimension.values();
 
@@ -187,11 +240,11 @@ public class CompositeUnit {
                 per *= numTerms.get(j).per(numTerms2.get(j));
             }
 
-            ArrayList<BaseUnit> denomTerms = getNumeratorTerms(dim);
-            ArrayList<BaseUnit> denomTerms2 = unit2.getNumeratorTerms(dim);
+            ArrayList<BaseUnit> denomTerms = getDenominatorTerms(dim);
+            ArrayList<BaseUnit> denomTerms2 = unit2.getDenominatorTerms(dim);
 
             for (int j = 0; j < denomTerms.size(); j++) {
-                per *= denomTerms2.get(j).per(denomTerms.get(j));
+                per /= denomTerms.get(j).per(denomTerms2.get(j));
             }
         }
 
@@ -202,12 +255,35 @@ public class CompositeUnit {
         return per;
     }
 
-    public double to(CompositeUnit unit2, double num) {
-        if (!isCompatible(unit2)) {
-            return 0; // ig
-        }
+    public double per(BaseUnit bu) {
+        return per(bu.getUnit());
+    }
 
-        // units * units2/unit1
-        return num / per(unit2);
+    public Unit multiply(Unit unit2) {
+        ArrayList<BaseUnit> numList = unit2.getNumeratorList(); // this is a copy
+        ArrayList<BaseUnit> denomList = unit2.getDenominatorList(); // this is also a copy
+
+        numList.addAll(NUMERATOR_LIST); // can add whatever without causing problems
+        denomList.addAll(DENOMINATOR_LIST); // can add whatever without causing problems
+
+        return new Unit(numList, denomList, COEFF * unit2.getCoefficient());
+    }
+
+    public Unit multiply(BaseUnit unit2) {
+        return multiply(unit2.getUnit());
+    }
+
+    public Unit divide(Unit unit2) {
+        ArrayList<BaseUnit> numList = unit2.getNumeratorList(); // this is a copy
+        ArrayList<BaseUnit> denomList = unit2.getDenominatorList(); // this is also a copy
+
+        numList.addAll(DENOMINATOR_LIST); // can add whatever without causing problems
+        denomList.addAll(NUMERATOR_LIST); // can add whatever without causing problems
+
+        return new Unit(numList, denomList, COEFF / unit2.getCoefficient());
+    }
+
+    public Unit divide(BaseUnit unit2) {
+        return divide(unit2.getUnit());
     }
 }

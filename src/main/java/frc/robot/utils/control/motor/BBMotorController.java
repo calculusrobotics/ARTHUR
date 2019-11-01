@@ -13,6 +13,7 @@ import frc.robot.utils.control.encoder.*;
 
 import frc.robot.utils.math.units.BaseUnit;
 import frc.robot.utils.math.units.Units;
+import frc.robot.utils.math.units.UnitBuilder;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -290,6 +291,19 @@ public abstract class BBMotorController {
     protected abstract double getSecondTimePeriod();
     protected final double SECOND_TIME_PERIOD = getSecondTimePeriod();
 
+    private BaseUnit tick;
+    private BaseUnit velocityTime = new BaseUnit(Units.S, 1/TIME_PERIOD);
+    private BaseUnit accelerationTime = new BaseUnit(Units.S, 1/SECOND_TIME_PERIOD);
+
+    private BaseUnit vel_nu;
+    private BaseUnit acc_nu;
+
+    public void defineUnits() {
+        tick = new BaseUnit(Units.REV, sensor.getTicksPerRev());
+        vel_nu = (new UnitBuilder()).num(tick).denom(velocityTime);
+        acc_nu = (new UnitBuilder()).num(tick).denom(accelerationTime);
+    }
+
 
 
     /** Default to 1s. For example, timeScale=60 means measurements in (whatever)PM. Seconds per time unit*/
@@ -336,43 +350,6 @@ public abstract class BBMotorController {
 
 
     public abstract void follow(BBMotorController motorController);
-
-
-
-    /** 
-     * Convert ENCODER revolutions to encoder ticks/native units
-     * 
-     * @param revs revolutions
-     * 
-     * @return encoder revs converted to encoder ticks
-     */
-    public int revsToTicks(double revs) {
-        return (int) (revs * sensor.getTicksPerRev() + 0.5); // round
-    }
-
-    /**
-     * Convert ENCODER ticks to ENCODER revolutions
-     * 
-     * @param ticks encoder ticks
-     * 
-     * @return encoder ticks converted to encoder revs
-     */
-    public double ticksToRevs(double ticks) {
-        return ticks / sensor.getTicksPerRev();
-    }
-
-    private BaseUnit tick;
-    private BaseUnit velocityTime = new BaseUnit(Units.S, 1/TIME_PERIOD);
-    private BaseUnit accelerationTime = new BaseUnit(Units.S, 1/SECOND_TIME_PERIOD);
-
-    private BaseUnit vel_nu;
-    private BaseUnit acc_nu;
-
-    public void defineUnits() {
-        tick = new BaseUnit(Units.REV, sensor.getTicksPerRev());
-        vel_nu = (new UnitBuilder()).num(tick).denom(velocityTime);
-        acc_nu = (new UnitBuilder()).num(tick).denom(accelerationTime);
-    }
 
 
 

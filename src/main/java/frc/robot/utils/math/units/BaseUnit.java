@@ -1,14 +1,8 @@
 package frc.robot.utils.math.units;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
-/**
- * Class for units of elementary dimensions.
- * Instead of converting between units directly, units are first converted to some "standard"
- * and then converted from the standard to the other unit. If every unit knows its conversion
- * to the standard, you can convert to standard units and then convert from standard to
- * others. Standard can be whatever you want so long as you are consistent.
- */
 public class BaseUnit {
     /** Dimensions for BaseUnits to measure */
     public enum Dimension {
@@ -27,10 +21,17 @@ public class BaseUnit {
     /** Dimension this unit measures */
     private final Dimension DIM;
 
+
+
+    private final Unit UNIT;
+
+
+
     /** Whether to store conversions to other units. Trade-off between computation time and memory space. */
-    private boolean storeConversions = false;
-    /** Stored conversions from a BaseUnit of the same Dimension to this unit/other unit */
-    private HashMap<BaseUnit, Double> conversions = new HashMap<BaseUnit, Double>();
+    protected boolean storeConversions = false;
+    /** Stored conversions from a Unit of the same Dimension(s) to another */
+    protected HashMap<BaseUnit, Double> conversions = new HashMap<BaseUnit, Double>();
+
 
 
     /**
@@ -40,6 +41,12 @@ public class BaseUnit {
      */
     public BaseUnit(Dimension dim) {
         this.DIM = dim;
+
+        ArrayList<BaseUnit> nums = new ArrayList<BaseUnit>();
+        nums.add(this);
+        ArrayList<BaseUnit> denoms = new ArrayList<BaseUnit>();
+
+        UNIT = new Unit(nums, denoms);
     }
 
     /**
@@ -66,19 +73,12 @@ public class BaseUnit {
         setPer(unit, per);
     }
 
-    
 
-    /**
-     * Indicate to store conversions. If you are converting to the
-     * same set of units frequently, this is a trade-off between
-     * computation time for every conversion and memory.
-     * 
-     * Instead of converting to standard and then to other unit,
-     * this would allow the Unit to convert directly because
-     * it knows the conversion to the stored units.
-     */
-    public void storeConversions() {
-        storeConversions = true;
+
+
+
+    public Unit getUnit() {
+        return UNIT;
     }
 
 
@@ -92,6 +92,18 @@ public class BaseUnit {
         return DIM;
     }
 
+
+
+    public boolean isCompatible(Unit unit2) {
+        return unit2.isCompatible(this);
+    }
+
+    public boolean isCompatible(BaseUnit unit2) {
+        return DIM == unit2.getDimension();
+    }
+
+
+
     /**
      * Sets how many of this unit are in a standard unit
      * 
@@ -99,6 +111,41 @@ public class BaseUnit {
      */
     public void setPerStandard(double perStandard) {
         this.perStandard = perStandard;
+    }
+    
+    public double getPerStandard() {
+    	return perStandard;
+    }
+
+    /**
+     * Set conversions based on conversion to another unit
+     * 
+     * @param bu other unit to base conversions off of
+     * @param per amount of this unit per 1 bu
+     */
+    public void setPer(BaseUnit unit2, double per) {
+        // make sure dimensions are compatible
+        if (!isCompatible(unit2)) {
+            return;
+        }
+
+        // if storing conversions, might as well store this given one
+        if (storeConversions) {
+            conversions.put(unit2, per);
+        }
+
+        // units / 1 bu * bu/std = units/std
+        setPerStandard(per * unit2.perStandard());
+    }
+
+    public void setPer(Unit unit2, double per) {
+        if (!isCompatible(unit2)) {
+            return;
+        }
+
+        // if compatible, then only one thing in numerator should be
+        // a compatible BaseUnit
+        setPer(unit2.getNumeratorList().get(0), per / unit2.getCoefficient());
     }
 
     /**
@@ -108,26 +155,7 @@ public class BaseUnit {
         return perStandard;
     }
 
-    /**
-     * Set conversions based on conversion to another unit
-     * 
-     * @param bu other unit to base conversions off of
-     * @param per amount of this unit per 1 bu
-     */
-    public void setPer(BaseUnit bu, double per) {
-        // make sure dimensions are compatible
-        if (bu.getDimension() != DIM) {
-            return;
-        }
 
-        // if storing conversions, might as well store this given one
-        if (storeConversions) {
-            conversions.put(bu, per);
-        }
-
-        // units / 1 bu * bu/std = units/std
-        setPerStandard(per * bu.perStandard());
-    }
 
     /**
      * Determine how many of this unit are in another of the same dimension
@@ -135,10 +163,10 @@ public class BaseUnit {
      * @param bu other BaseUnit to determine conversion to
      * @return how many of this unit are in bu, or 0 if dimensions are incompatible
      */
-    public double per(BaseUnit bu) {
+    public double per(BaseUnit unit2) {
         // don't double calculate if you already know the conversion
         if (storeConversions) {
-            Double conv = conversions.get(bu);
+            Double conv = conversions.get(unit2);
 
             // if you know the conversion, return it
             if (conv != null) {
@@ -148,34 +176,53 @@ public class BaseUnit {
 
         // return 0 if dimensions are incompatible
         // not needed at start because only stores comptatible BaseUnit conversions
-        if (bu.getDimension() != DIM) {
+        if (unit2.getDimension() != DIM) {
             return 0; // ig
         }
 
+        // x unit = 1 unit2
+        // x = unit2 / unit
+        // x = unit2 / standard * standard/unit
+        // unit perStandard = 1 standard
+        // unit/standard = 1/perStandard
+        // standard/unit = perStandard
+        // standard = 
+        double per = perStandard / unit2.perStandard();
+        
+        // if storing conversions, store this one now that the unit knows it
+        if (storeConversions) {
+            conversions.put(unit2, per);
+        }
+
+        return per;
+    }
+
+    public double per(Unit unit2) {
+        if (!isCompatible(unit2)) {
+            return 0;
+        }
+
+        BaseUnit bu = unit2.getNumeratorList().get(0);
+
+        // don't double calculate if you already know the conversion
+        if (storeConversions) {
+            Double conv = conversions.get(bu);
+
+            // if you know the conversion, return it
+            if (conv != null) {
+                // x in/(2*ft) = 1
+                // x = 1 * (2ft)/in = 2 ft/in = 2 * 12 = 24
+                return unit2.getCoefficient() * conv;
+            }
+        }
+
         // units/std * std/units2 = units/units2
-        double per = perStandard / bu.perStandard();
+        double per = perStandard / bu.perStandard() * unit2.getCoefficient();
         // if storing conversions, store this one now that the unit knows it
         if (storeConversions) {
             conversions.put(bu, per);
         }
 
         return per;
-    }
-
-    /**
-     * Convert amounts of this unit to another
-     * 
-     * @param bu unit to convert to
-     * @param num amount of this unit
-     * 
-     * @return num in units of bu or 0 if unit dimensions are incompatible
-     */
-    public double to(BaseUnit bu, double num) {
-        if (bu.getDimension() != DIM) {
-            return 0; // ig
-        }
-
-        // units * units2/unit1
-        return num / per(bu);
     }
 }
