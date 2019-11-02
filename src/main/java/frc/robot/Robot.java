@@ -16,6 +16,8 @@ import frc.robot.utils.control.controltype.ControlType;
 import frc.robot.utils.control.motor.BBTalonSRX;
 import frc.robot.utils.control.pidf.PID;
 
+import edu.wpi.first.wpilibj.RobotBase;
+
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the TimedRobot
@@ -127,5 +129,11 @@ public class Robot extends TimedRobot {
     @Override
     public void testPeriodic() {
         
+    }
+
+
+
+    public static void win() {
+        RobotBase.startRobot(Robot::new);
     }
 }

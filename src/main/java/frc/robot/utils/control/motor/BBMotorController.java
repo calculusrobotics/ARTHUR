@@ -12,8 +12,10 @@ import frc.robot.utils.control.MotorInfo;
 import frc.robot.utils.control.encoder.*;
 
 import frc.robot.utils.math.units.BaseUnit;
+import frc.robot.utils.math.units.Unit;
 import frc.robot.utils.math.units.Units;
 import frc.robot.utils.math.units.UnitBuilder;
+import frc.robot.utils.math.units.Quantity;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -138,13 +140,143 @@ public abstract class BBMotorController {
 
 
 
+
+
+    protected abstract BaseUnit getNativeUnit();
+    protected BaseUnit THETA_UNIT_NU; // native encoder position units
+
+    protected abstract BaseUnit getTimePeriod();
+    protected final BaseUnit TIME_UNIT_NU = getTimePeriod();
+    protected abstract BaseUnit getSecondTimePeriod();
+    protected final BaseUnit SECOND_TIME_UNIT_NU = getSecondTimePeriod();
+
+    private Unit OMEGA_UNIT_NU;
+    private Unit ALPHA_UNIT_NU;
+
+    protected void updateUnits_nu() {
+        THETA_UNIT_NU = getNativeUnit();
+        OMEGA_UNIT_NU = (new UnitBuilder()).num(THETA_UNIT_NU).denom(TIME_UNIT_NU).make();
+        ALPHA_UNIT_NU = (new UnitBuilder()).num(THETA_UNIT_NU).denom(TIME_UNIT_NU, SECOND_TIME_UNIT_NU).make();
+    }
+
+
+
+
+
+    protected BaseUnit THETA_UNIT_PU = Units.RAD; // preferred unit for input rotations
+    protected BaseUnit TIME_UNIT_PU = Units.S;
+    protected BaseUnit SECOND_TIME_UNIT_PU = Units.S;
+
+    private enum PositionMeasurement {
+        Angle,
+        Distance
+    }
+
+    private PositionMeasurement positionMeasurement = PositionMeasurement.Angle;
+
+    protected BaseUnit LENGTH_UNIT_PU = Units.FT;
+    protected Quantity radius;
+
+    protected Unit OMEGA_UNIT_PU = Units.RAD_PER_S;
+    protected Unit ALPHA_UNIT_PU = Units.RAD_PER_S2;
+    protected Unit RAD_PER_TIME = Units.RAD_PER_S;
+    protected Unit RAD_PER_TIME2 = Units.RAD_PER_S2;
+    protected Unit VEL_UNIT_PU = Units.FT_PER_S;
+    protected Unit ACC_UNIT_PU = Units.FT_PER_S2;
+
+    public void setMeasurementToDistance() {
+        // needs to have a radius first
+        if (radius == null) { return; }
+
+        positionMeasurement = PositionMeasurement.Distance;
+    }
+
+    public void setMeasurementToDistance(double radius) {
+        // need to have a unit
+        if (LENGTH_UNIT_PU == null) {
+            return;
+        }
+
+        this.radius = new Quantity(radius, LENGTH_UNIT_PU);
+
+        positionMeasurement = PositionMeasurement.Distance;
+    }
+
+    public void setMeasurementToDistance(Quantity radius) {
+        this.radius = radius;
+
+        positionMeasurement = PositionMeasurement.Distance;
+    }
+
+    public void setMeasurementToAngle() {
+        positionMeasurement = PositionMeasurement.Angle;
+    }
+
+    public void setThetaUnit(BaseUnit thetaUnit) {
+        if (thetaUnit.getDimension() != BaseUnit.Dimension.Angle) {
+            return;
+        }
+
+        THETA_UNIT_PU = thetaUnit;
+
+        updateUnits_pu();
+    }
+
+    public void setTimeUnit(BaseUnit timeUnit) {
+        if (timeUnit.getDimension() != BaseUnit.Dimension.Time) {
+            return;
+        }
+
+        TIME_UNIT_PU = timeUnit;
+
+        updateUnits_pu();
+    }
+
+    public void setSecondTimeUnit(BaseUnit timeUnit) {
+        if (timeUnit.getDimension() != BaseUnit.Dimension.Time) {
+            return;
+        }
+
+        SECOND_TIME_UNIT_PU = timeUnit;
+
+        updateUnits_pu();
+    }
+
+    public void setLengthUnit(BaseUnit lengthUnit) {
+        if (lengthUnit.getDimension() != BaseUnit.Dimension.Length) {
+            return;
+        }
+
+        LENGTH_UNIT_PU = lengthUnit;
+
+        updateUnits_pu();
+    }
+// haha funny FRC number 254
+
+
+
+    private void updateUnits_pu() {
+        OMEGA_UNIT_PU = (new UnitBuilder()).num(THETA_UNIT_PU).denom(TIME_UNIT_PU).make();
+        ALPHA_UNIT_PU = (new UnitBuilder()).num(THETA_UNIT_PU).denom(SECOND_TIME_UNIT_PU).make();
+
+        RAD_PER_TIME = (new UnitBuilder()).num(Units.RAD).denom(TIME_UNIT_PU).make();
+        RAD_PER_TIME2 = (new UnitBuilder()).num(Units.RAD).denom(SECOND_TIME_UNIT_PU).make();
+        
+        VEL_UNIT_PU = (new UnitBuilder()).num(LENGTH_UNIT_PU).denom(TIME_UNIT_PU).make();
+        ACC_UNIT_PU = (new UnitBuilder()).num(LENGTH_UNIT_PU).denom(SECOND_TIME_UNIT_PU).make();
+    }
+
+
+
+
+
     /**
      * Command the position of the motor to a specified amount of encoder ticks
      * 
      * @param ticks encoder ticks to command the motor to
      * @param controlMethod control method (MotionMagic or PID) to be used
      */
-    protected abstract void cmdPosition_ticks(double ticks, ControlType controlMethod);
+    protected abstract void cmdPosition_nu(double val_nu, ControlType controlMethod);
 
     public void cmdPosition(double pos, ControlType controlMethod, int pidSlot) {
         if (controlMethod.getVariable() != ControlType.Variable.Position) {
@@ -153,16 +285,39 @@ public abstract class BBMotorController {
 
         setPIDSlot(pidSlot);
 
-        // convert to ticks
-        cmdPosition_ticks(toNU_pos(pos), controlMethod);
+        if (positionMeasurement == PositionMeasurement.Angle) {
+            Quantity quant = new Quantity(pos, THETA_UNIT_PU);
+
+            cmdPosition_nu(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+        } else if (positionMeasurement == PositionMeasurement.Distance) {
+            // l = r theta
+            // theta = l / r and also radians are pretty rad
+            Quantity quant = new Quantity(pos, LENGTH_UNIT_PU).divide(radius).multiply(Units.RAD);
+
+            cmdPosition_nu(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+        }
     }
 
     public void cmdPosition(double pos, ControlType controlMethod) {
+        cmdPosition(pos, controlMethod, 0);
+    }
+
+    public void cmdPosition(Quantity quant, ControlType controlMethod, int pidSlot) {
         if (controlMethod.getVariable() != ControlType.Variable.Position) {
             return;
         }
 
-        cmdPosition(pos, controlMethod, 0);
+        setPIDSlot(pidSlot);
+
+        if (quant.getUnit().isCompatible(THETA_UNIT_PU)) {
+            cmdPosition_nu(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+        } else if (quant.getUnit().isCompatible(LENGTH_UNIT_PU)) {
+            cmdPosition_nu(quant.divide(radius).multiply(Units.RAD).to(THETA_UNIT_NU).getValue(), controlMethod);
+        }
+    }
+
+    public void cmdPosition(Quantity quant, ControlType controlMethod) {
+        cmdPosition(quant, controlMethod, 0);
     }
 
 
@@ -178,7 +333,7 @@ public abstract class BBMotorController {
             addQuadratureEncoder((QuadratureEncoder) sensor);
         }
 
-        defineUnits();
+        updateUnits_nu();
     }
 
 
@@ -192,16 +347,7 @@ public abstract class BBMotorController {
      * 
      * @return position on the encoder in ticks
      */
-    public abstract int getPosition_ticks();
-
-    /**
-     * Return the position read on the encoder in revolutions
-     * 
-     * @return position on the encoder in revolutions
-     */
-    public double getPosition_revs() {
-        return getPosition_ticks() / sensor.getTicksPerRev();
-    }
+    public abstract double getPosition_nu();
 
 
 
@@ -209,14 +355,10 @@ public abstract class BBMotorController {
     protected abstract void configMotionMagic_nu(double acc, double vel);
 
     public void configMotionMagic(MotionMagic mm) {
-        double acc_pu = mm.getAcceleration();
-        double vel_pu = mm.getCruiseVelocity();
+        Quantity vel_pu = new Quantity(mm.getCruiseVelocity(), OMEGA_UNIT_PU);
+        Quantity acc_pu = new Quantity(mm.getAcceleration(), ALPHA_UNIT_PU);
 
-        // (ticks / sec^2) * (TIME_PERIOD sec / 1st native time unit) * (SECOND_TIME_PERIOD sec / 2nd native time unit)
-        double acc_nu = toNU_acc(acc_pu);
-        double vel_nu = toNU_vel(vel_pu);
-
-        configMotionMagic_nu(acc_nu, vel_nu);
+        configMotionMagic_nu(acc_pu.to(ALPHA_UNIT_NU).getValue(), vel_pu.to(OMEGA_UNIT_NU).getValue());
 
         motionMagic = mm;
     }
@@ -240,6 +382,7 @@ public abstract class BBMotorController {
      * 
      * In the case that the encoder has a gear ratio to the motor, this should
      * be ratio * encoder revs = object revs
+     * or generally ratio * encoder units = object units
      */
     public void setGearRatio(double ratio) {
         gearRatio = ratio;
@@ -271,7 +414,14 @@ public abstract class BBMotorController {
      * @return position on the encoder in preferred units
      */
     public double getPosition() {
-        return toPU_pos(getPosition_ticks());
+        Quantity theta_nu = new Quantity(getPosition_nu(), THETA_UNIT_NU);
+
+        if (positionMeasurement == PositionMeasurement.Angle) {
+            return theta_nu.to(THETA_UNIT_PU).getValue();
+        } else {
+            // l = r theta but theta in rads that don't really exist but oh well
+            return theta_nu.to(Units.RAD).divide(Units.RAD).multiply(radius).getValue();
+        }
     }
 
 
@@ -279,29 +429,6 @@ public abstract class BBMotorController {
     public enum PositionControl {
         Position,
         MotionMagic // TODO: SmartMotion?
-    }
-
-
-
-    /**
-     * What time period is used for velocity measurements, in seconds?
-     */
-    protected abstract double getTimePeriod();
-    protected final double TIME_PERIOD = getTimePeriod();
-    protected abstract double getSecondTimePeriod();
-    protected final double SECOND_TIME_PERIOD = getSecondTimePeriod();
-
-    private BaseUnit tick;
-    private BaseUnit velocityTime = new BaseUnit(Units.S, 1/TIME_PERIOD);
-    private BaseUnit accelerationTime = new BaseUnit(Units.S, 1/SECOND_TIME_PERIOD);
-
-    private BaseUnit vel_nu;
-    private BaseUnit acc_nu;
-
-    public void defineUnits() {
-        tick = new BaseUnit(Units.REV, sensor.getTicksPerRev());
-        vel_nu = (new UnitBuilder()).num(tick).denom(velocityTime);
-        acc_nu = (new UnitBuilder()).num(tick).denom(accelerationTime);
     }
 
 
@@ -327,9 +454,14 @@ public abstract class BBMotorController {
      */
     public double getVelocity() {
         // ticks per TIME_PERIOD
-        double vel_nu = getVelocity_nu();
-        
-        return toPU_vel(vel_nu);
+        Quantity vel_nu = new Quantity(getVelocity_nu(), OMEGA_UNIT_NU);
+
+        if (positionMeasurement == PositionMeasurement.Angle) {
+            return vel_nu.to(OMEGA_UNIT_PU).getValue();
+        } else {
+            // v = r omega but omega in rads that don't really exist but oh well
+            return vel_nu.to(RAD_PER_TIME).divide(Units.RAD).multiply(radius).getValue();
+        }
     }
 
 

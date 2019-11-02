@@ -12,6 +12,10 @@ import frc.robot.utils.control.pidf.PIDF;
 import frc.robot.utils.control.encoder.QuadratureEncoder;
 import frc.robot.utils.control.motionprofile.motionmagic.MotionMagic;
 
+import frc.robot.utils.math.units.Unit;
+import frc.robot.utils.math.units.Units;
+import frc.robot.utils.math.units.BaseUnit;
+
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.ControlMode;
 
@@ -102,13 +106,22 @@ public class BBTalonSRX extends BBMotorController {
 
 
     @Override
-    protected double getTimePeriod() {
-        return 0.1; // ticksPer100ms -> 0.1s
+    protected BaseUnit getTimeUnit() {
+        return Units.MS100; // ticksPer100ms -> 100ms
     }
 
     @Override
-    protected double getSecondTimePeriod() {
-        return 1; // ticksPer100msPerSec -> 1s (ik its dumb that's CTRE tho)
+    protected BaseUnit getSecondTimeUnit() {
+        return Units.S; // ticksPer100msPerSec -> 1s (ik its dumb that's CTRE tho)
+    }
+
+    @Override
+    protected BaseUnit getNativeUnit() {
+        if (sensor == null) {
+            return null;
+        }
+
+        return new BaseUnit(Units.REV, sensor.getTicksPerRev());
     }
 
 
