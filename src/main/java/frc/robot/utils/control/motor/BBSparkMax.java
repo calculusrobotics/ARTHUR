@@ -7,6 +7,9 @@ import frc.robot.utils.control.encoder.QuadratureEncoder;
 import frc.robot.utils.control.pidf.PID;
 import frc.robot.utils.control.pidf.PIDF;
 
+import frc.robot.utils.math.units.BaseUnit;
+import frc.robot.utils.math.units.Units;
+
 import com.revrobotics.CANEncoder;
 import com.revrobotics.CANPIDController;
 import com.revrobotics.CANSparkMax;
@@ -65,12 +68,9 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public void cmdPosition_ticks(int ticks, ControlType controlMethod) {
+    public void cmdPosition_nu(double val_nu, ControlType controlMethod) {
         // RevRobotics also has a ControlType class :/
         com.revrobotics.ControlType mode;
-
-        // get encoder revolutions because SparkMax uses revolutions as default unit
-        double revs = ticksToRevs(ticks);
 
         switch (controlMethod) {
             case PID: {
@@ -86,7 +86,13 @@ public class BBSparkMax extends BBMotorController {
             }
         }
 
-        PID_CONTROLLER.setReference(revs, mode, pidSlot);
+        PID_CONTROLLER.setReference(val_nu, mode, pidSlot);
+    }
+
+    @Override
+    protected void configMotionMagic_nu(double acc, double vel) {
+        PID_CONTROLLER.setSmartMotionMaxAccel(acc, pidSlot);
+        PID_CONTROLLER.setSmartMotionMaxVelocity(vel, pidSlot);
     }
 
     @Override
@@ -96,23 +102,32 @@ public class BBSparkMax extends BBMotorController {
     }
 
     @Override
-    public int getPosition_ticks() {
+    public double getPosition_nu() {
         // SparkMax returns position in revs
-        return (int) (encoder.getPosition() * sensor.getTicksPerRev());
+        return encoder.getPosition();
     }
 
 
 
     @Override
-    protected double getTimePeriod() {
-        return 60; // RPM -> minutes -> 60 seconds
+    protected BaseUnit getLengthUnit_nu() {
+        return Units.REV;
+    }
+    @Override
+    protected BaseUnit getTimeUnit_nu() {
+        return Units.MIN; // RPM -> minutes -> 60 seconds
+    }
+
+    @Override
+    protected BaseUnit getSecondTimeUnit_nu() {
+        return Units.S;
     }
 
 
 
     @Override
     public double getVelocity_nu() {
-        return revsToTicks(encoder.getVelocity()); // I'm somebody
+        return encoder.getVelocity(); // I'm somebody
     }
 
 

@@ -143,7 +143,7 @@ public abstract class BBMotorController {
 
 
 
-    protected abstract BaseUnit getNativeUnit();
+    protected abstract BaseUnit getLengthUnit_nu();
     protected BaseUnit THETA_UNIT_NU; // native encoder position units
 
     protected abstract BaseUnit getTimeUnit_nu();
@@ -155,7 +155,7 @@ public abstract class BBMotorController {
     private Unit ALPHA_UNIT_NU;
 
     protected void updateUnits_nu() {
-        THETA_UNIT_NU = getNativeUnit();
+        THETA_UNIT_NU = getLengthUnit_nu();
         OMEGA_UNIT_NU = (new UnitBuilder()).num(THETA_UNIT_NU).denom(TIME_UNIT_NU).make();
         ALPHA_UNIT_NU = (new UnitBuilder()).num(THETA_UNIT_NU).denom(TIME_UNIT_NU, SECOND_TIME_UNIT_NU).make();
     }
@@ -251,6 +251,7 @@ public abstract class BBMotorController {
         if (timeUnit.getDimension() != BaseUnit.Dimension.Time) {
             return;
         }
+// haha funny FRC number 254
 
         SECOND_TIME_UNIT_PU = timeUnit;
 
@@ -266,7 +267,6 @@ public abstract class BBMotorController {
 
         updateUnits_pu();
     }
-// haha funny FRC number 254
 
 
 

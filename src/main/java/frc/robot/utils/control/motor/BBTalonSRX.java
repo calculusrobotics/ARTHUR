@@ -4,13 +4,10 @@ package frc.robot.utils.control.motor;
 
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 
-import frc.robot.utils.math.MathUtils;
-
 import frc.robot.utils.control.controltype.ControlType;
 import frc.robot.utils.control.pidf.PID;
 import frc.robot.utils.control.pidf.PIDF;
 import frc.robot.utils.control.encoder.QuadratureEncoder;
-import frc.robot.utils.control.motionprofile.motionmagic.MotionMagic;
 
 import frc.robot.utils.math.units.Unit;
 import frc.robot.utils.math.units.Units;
@@ -85,8 +82,8 @@ public class BBTalonSRX extends BBMotorController {
 
     @Override
     protected void configMotionMagic_nu(double acc, double vel) {
-        int accInt = (int) (acc + 0.5);
-        int velInt = (int) (vel + 0.5);
+        int accInt = (int) Math.round(acc);
+        int velInt = (int) Math.round(vel);
 
         MOTOR.configMotionAcceleration(accInt);
         MOTOR.configMotionCruiseVelocity(velInt);
@@ -116,7 +113,7 @@ public class BBTalonSRX extends BBMotorController {
     }
 
     @Override
-    protected BaseUnit getNativeUnit() {
+    protected BaseUnit getLengthUnit_nu() {
         if (sensor == null) {
             return null;
         }
