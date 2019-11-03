@@ -69,4 +69,9 @@ public class Quantity {
             return null;
         }
     }
+    
+    @Override
+    public String toString() {
+    	return VALUE + " " + UNIT.toString();
+    }
 }

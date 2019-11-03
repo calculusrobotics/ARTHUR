@@ -7,6 +7,7 @@ public class UnitBuilder {
     private ArrayList<BaseUnit> nums = new ArrayList<BaseUnit>();
     private ArrayList<BaseUnit> denoms = new ArrayList<BaseUnit>();
     private double coeff0 = 1;
+    private String name = null;
 
     public UnitBuilder num(BaseUnit... nums) {
         this.nums.addAll(Arrays.asList(nums));
@@ -53,8 +54,14 @@ public class UnitBuilder {
 
         return this;
     }
+    
+    public UnitBuilder name(String name) {
+    	this.name = name;
+    	
+    	return this;
+    }
 
     public Unit make() {
-        return new Unit(nums, denoms, coeff0);
+        return new Unit(nums, denoms, coeff0, name);
     }
 }

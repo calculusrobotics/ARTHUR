@@ -31,6 +31,10 @@ public class BaseUnit {
     protected boolean storeConversions = false;
     /** Stored conversions from a Unit of the same Dimension(s) to another */
     protected HashMap<BaseUnit, Double> conversions = new HashMap<BaseUnit, Double>();
+    
+    
+    
+    private final String NAME;
 
 
 
@@ -39,7 +43,7 @@ public class BaseUnit {
      * 
      * @param dim dimension the unit measures
      */
-    public BaseUnit(Dimension dim) {
+    public BaseUnit(Dimension dim, String name) {
         this.DIM = dim;
 
         ArrayList<BaseUnit> nums = new ArrayList<BaseUnit>();
@@ -47,6 +51,8 @@ public class BaseUnit {
         ArrayList<BaseUnit> denoms = new ArrayList<BaseUnit>();
 
         UNIT = new Unit(nums, denoms);
+        
+        NAME = name;
     }
 
     /**
@@ -55,8 +61,8 @@ public class BaseUnit {
      * @param dim dimension the unit measures
      * @param perStandard how many of this unit are there per standard unit
      */
-    public BaseUnit(Dimension dim, double perStandard) {
-        this(dim);
+    public BaseUnit(Dimension dim, double perStandard, String name) {
+        this(dim, name);
 
         this.perStandard = perStandard;
     }
@@ -67,11 +73,20 @@ public class BaseUnit {
      * @param unit other unit that conversion is specified to
      * @param per how many of this BaseUnit to other unit
      */
-    public BaseUnit(BaseUnit unit, double per) {
-        this(unit.getDimension());
+    public BaseUnit(BaseUnit unit, double per, String name) {
+        this(unit.getDimension(), name);
 
         setPer(unit, per);
     }
+    
+    
+    
+    public String getName() {
+    	return NAME;
+    }
+    
+    @Override
+    public String toString() { return getName(); }
 
 
 
@@ -100,6 +115,10 @@ public class BaseUnit {
 
     public boolean isCompatible(BaseUnit unit2) {
         return DIM == unit2.getDimension();
+    }
+
+    public boolean isCompatible(Dimension dim) {
+        return DIM == dim;
     }
 
 

@@ -56,6 +56,10 @@ public class Unit {
     private boolean storeConversions = false;
     /** Stored conversions from a CompositeUnit of the same Dimension to this unit/other unit */
     private HashMap<Unit, Double> conversions = new HashMap<Unit, Double>();
+    
+    
+    
+    private String name;
 
 
 
@@ -134,6 +138,12 @@ public class Unit {
         NUMERATOR_LIST = numsList;
         DENOMINATOR_LIST = denomsList;
     }
+    
+    public Unit(List<BaseUnit> numerator, List<BaseUnit> denominator, double coeff0, String name) {
+    	this(numerator, denominator, coeff0);
+    	
+    	this.name = name;
+    }
 
     /**
      * Warning: this constructor may modify numerator and denominator variables
@@ -146,18 +156,163 @@ public class Unit {
     public Unit(List<BaseUnit> numerator, List<BaseUnit> denominator) {
         this(numerator, denominator, 1);
     }
+    
+    public Unit(List<BaseUnit> numerator, List<BaseUnit> denominator, String name) {
+    	this(numerator, denominator);
+    	
+    	this.name = name;
+    }
 
     public Unit(BaseUnit[] numerator, BaseUnit[] denominator, double coeff0) {
         this(Arrays.asList(numerator), Arrays.asList(denominator), coeff0);
+    }
+    
+    public Unit(BaseUnit[] numerator, BaseUnit[] denominator, double coeff0, String name) {
+    	this(numerator, denominator, coeff0);
+    	
+    	this.name = name;
     }
 
     public Unit(BaseUnit[] numerator, BaseUnit[] denominator) {
         this(numerator, denominator, 1);
     }
     
+    public Unit(BaseUnit[] numerator, BaseUnit[] denominator, String name) {
+    	this(numerator, denominator);
+    	
+    	this.name = name;
+    }
+    
     public Unit(Unit unit2, double coeff0) {
     	this(unit2.getNumeratorList(), unit2.getDenominatorList(), coeff0 * unit2.getCoefficient());
     }
+    
+    public Unit(Unit unit2, double coeff0, String name) {
+    	this(unit2, coeff0);
+    	
+    	this.name = name;
+    }
+    
+    
+    
+    public String getDefaultName() {String num = "", denom = "";
+		
+		ArrayList<BaseUnit> numUnits = new ArrayList<BaseUnit>();
+		HashMap<BaseUnit, Integer> numUnitPowers = new HashMap<BaseUnit, Integer>();
+		ArrayList<BaseUnit> denomUnits = new ArrayList<BaseUnit>();
+		HashMap<BaseUnit, Integer> denomUnitPowers = new HashMap<BaseUnit, Integer>();
+		
+		
+		
+		for (int i = 0; i < NUMERATOR_LIST.size(); i++) {
+			BaseUnit unit = NUMERATOR_LIST.get(i);
+			
+			if (!numUnitPowers.containsKey(unit)) {
+				numUnits.add(unit);
+				numUnitPowers.put(unit, 0);
+			}
+			
+			numUnitPowers.put(unit, numUnitPowers.get(unit) + 1);
+		}
+		
+		for (int i = 0; i < DENOMINATOR_LIST.size(); i++) {
+			BaseUnit unit = DENOMINATOR_LIST.get(i);
+			
+			if (!denomUnitPowers.containsKey(unit)) {
+				denomUnits.add(unit);
+				denomUnitPowers.put(unit, 0);
+			}
+			
+			denomUnitPowers.put(unit, denomUnitPowers.get(unit) + 1);
+		}
+		
+		
+		
+		if (numUnits.size() == 0) {
+			num = "1";
+		} else if (numUnits.size() == 1) {
+			int pow = numUnitPowers.get(numUnits.get(0));
+			
+			if (pow == 1) {
+				num = numUnits.get(0).toString();
+			} else {
+				num = numUnits.get(0).toString() + "^" + pow;
+			}
+		} else {
+			num = "(";
+			
+			for (int i = 0; i < numUnits.size(); i++) {
+				int pow = numUnitPowers.get(numUnits.get(i));
+				
+				if (pow == 1) {
+					num += numUnits.get(i).toString();
+				} else {
+					num += numUnits.get(i).toString() + "^" + pow;
+				}
+				
+				if (i != numUnits.size() - 1) { // not last one
+					num += " ";
+				}
+			}
+			
+			num += ")";
+		}
+		
+		if (denomUnits.size() == 0) {
+			denom = "";
+		} else if (denomUnits.size() == 1) {
+			int pow = denomUnitPowers.get(denomUnits.get(0));
+			
+			if (pow == 1) {
+				denom = "/" + denomUnits.get(0).toString();
+			} else {
+				denom = "/" + denomUnits.get(0).toString() + "^" + pow;
+			}
+		} else {
+			denom = "/(";
+			
+			for (int i = 0; i < denomUnits.size(); i++) {
+				int pow = denomUnitPowers.get(denomUnits.get(0));
+				
+				if (pow == 1) {
+					denom += denomUnits.get(i).toString();
+				} else {
+					denom += denomUnits.get(i).toString() + "^" + denomUnitPowers.get(denomUnits.get(i));
+				}
+				
+				if (i != denomUnits.size() - 1) { // not last one
+					denom += " ";
+				}
+			}
+			
+			denom += ")";
+		}
+		
+		
+		
+		if (COEFF != 1) {
+			if (num.equals("1")) {
+				return COEFF + denom;
+			} else {
+				return COEFF + " " + num + denom;
+			}
+		} else {
+			return num + denom;
+		}
+    }
+    
+    
+    
+    public String getName() {
+    	if (name == null) {
+    		name = getDefaultName();
+    	}
+    	
+    	return name;
+    }
+    
+    @Override
+    public String toString() { return getName(); }
 
 
 
@@ -205,6 +360,14 @@ public class Unit {
         return isCompatible(bu.getUnit());
     }
 
+    public boolean isCompatible(Dimension dim) {
+        if (NUMERATOR_LIST.size() == 1 && DENOMINATOR_LIST.size() == 0) {
+            return NUMERATOR_LIST.get(0).getDimension() == dim;
+        } else {
+            return false;
+        }
+    }
+
     public double per(Unit unit2) {
         if (storeConversions) {
             Double conv = conversions.get(unit2);
@@ -225,8 +388,6 @@ public class Unit {
         // nums2/nums = nums.per(nums2)
 
         double per = unit2.getCoefficient() / COEFF;
-        System.out.println(COEFF);
-        System.out.println(unit2.getCoefficient());
 
         Dimension[] dimList = Dimension.values();
 
@@ -261,11 +422,11 @@ public class Unit {
     }
 
     public Unit multiply(Unit unit2) {
-        ArrayList<BaseUnit> numList = unit2.getNumeratorList(); // this is a copy
-        ArrayList<BaseUnit> denomList = unit2.getDenominatorList(); // this is also a copy
+        ArrayList<BaseUnit> numList = NUMERATOR_LIST; // this is a copy
+        ArrayList<BaseUnit> denomList = DENOMINATOR_LIST; // this is also a copy
 
-        numList.addAll(NUMERATOR_LIST); // can add whatever without causing problems
-        denomList.addAll(DENOMINATOR_LIST); // can add whatever without causing problems
+        numList.addAll(unit2.getNumeratorList()); // can add whatever without causing problems
+        denomList.addAll(unit2.getDenominatorList()); // can add whatever without causing problems
 
         return new Unit(numList, denomList, COEFF * unit2.getCoefficient());
     }
@@ -275,11 +436,11 @@ public class Unit {
     }
 
     public Unit divide(Unit unit2) {
-        ArrayList<BaseUnit> numList = unit2.getNumeratorList(); // this is a copy
-        ArrayList<BaseUnit> denomList = unit2.getDenominatorList(); // this is also a copy
+        ArrayList<BaseUnit> numList = NUMERATOR_LIST; // this is a copy
+        ArrayList<BaseUnit> denomList = DENOMINATOR_LIST; // this is also a copy
 
-        numList.addAll(DENOMINATOR_LIST); // can add whatever without causing problems
-        denomList.addAll(NUMERATOR_LIST); // can add whatever without causing problems
+        numList.addAll(unit2.getDenominatorList()); // can add whatever without causing problems
+        denomList.addAll(unit2.getNumeratorList()); // can add whatever without causing problems
 
         return new Unit(numList, denomList, COEFF / unit2.getCoefficient());
     }

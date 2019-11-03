@@ -61,10 +61,10 @@ public class BBTalonSRX extends BBMotorController {
 
 
     @Override
-    public void cmdPosition_ticks(double ticks, ControlType controlMethod) {
+    public void cmdPosition_nu(double val_nu, ControlType controlMethod) {
         ControlMode mode;
 
-        int ticksInt = MathUtils.round(ticks);
+        int ticks = (int) Math.round(val_nu);
 
         switch (controlMethod) {
             case PID: {
@@ -80,7 +80,7 @@ public class BBTalonSRX extends BBMotorController {
             }
         }
 
-        MOTOR.set(mode, ticksInt);
+        MOTOR.set(mode, ticks);
     }
 
     @Override
@@ -99,19 +99,19 @@ public class BBTalonSRX extends BBMotorController {
     }
 
     @Override
-    public int getPosition_ticks() {
+    public double getPosition_nu() {
         return MOTOR.getSelectedSensorPosition();
     }
 
 
 
     @Override
-    protected BaseUnit getTimeUnit() {
+    protected BaseUnit getTimeUnit_nu() {
         return Units.MS100; // ticksPer100ms -> 100ms
     }
 
     @Override
-    protected BaseUnit getSecondTimeUnit() {
+    protected BaseUnit getSecondTimeUnit_nu() {
         return Units.S; // ticksPer100msPerSec -> 1s (ik its dumb that's CTRE tho)
     }
 
@@ -121,7 +121,7 @@ public class BBTalonSRX extends BBMotorController {
             return null;
         }
 
-        return new BaseUnit(Units.REV, sensor.getTicksPerRev());
+        return new BaseUnit(Units.REV, sensor.getTicksPerRev(), "tick");
     }
 
 

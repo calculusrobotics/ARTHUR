@@ -14,6 +14,7 @@ import frc.robot.utils.control.encoder.*;
 import frc.robot.utils.math.units.BaseUnit;
 import frc.robot.utils.math.units.Unit;
 import frc.robot.utils.math.units.Units;
+import frc.robot.utils.math.units.BaseUnit.Dimension;
 import frc.robot.utils.math.units.UnitBuilder;
 import frc.robot.utils.math.units.Quantity;
 
@@ -145,10 +146,10 @@ public abstract class BBMotorController {
     protected abstract BaseUnit getNativeUnit();
     protected BaseUnit THETA_UNIT_NU; // native encoder position units
 
-    protected abstract BaseUnit getTimePeriod();
-    protected final BaseUnit TIME_UNIT_NU = getTimePeriod();
-    protected abstract BaseUnit getSecondTimePeriod();
-    protected final BaseUnit SECOND_TIME_UNIT_NU = getSecondTimePeriod();
+    protected abstract BaseUnit getTimeUnit_nu();
+    protected final BaseUnit TIME_UNIT_NU = getTimeUnit_nu();
+    protected abstract BaseUnit getSecondTimeUnit_nu();
+    protected final BaseUnit SECOND_TIME_UNIT_NU = getSecondTimeUnit_nu();
 
     private Unit OMEGA_UNIT_NU;
     private Unit ALPHA_UNIT_NU;
@@ -183,6 +184,20 @@ public abstract class BBMotorController {
     protected Unit RAD_PER_TIME2 = Units.RAD_PER_S2;
     protected Unit VEL_UNIT_PU = Units.FT_PER_S;
     protected Unit ACC_UNIT_PU = Units.FT_PER_S2;
+
+    public void setRadius(double radius) {
+        if (LENGTH_UNIT_PU == null) {
+            return;
+        }
+
+        this.radius = new Quantity(radius, LENGTH_UNIT_PU);
+    }
+
+    public void setRadius(Quantity radius) {
+        if (radius.getUnit().isCompatible(Dimension.Length)) {
+            this.radius = radius;
+        }
+    }
 
     public void setMeasurementToDistance() {
         // needs to have a radius first
@@ -365,49 +380,6 @@ public abstract class BBMotorController {
 
 
 
-    /** Ratio of prefered length units to OBJECT (not ENCODER/MOTOR) revolutions (default = revs) */
-    protected double lengthScale = 1;
-
-    /**
-     * Gear ratio, ratio * encoder revs = object revs
-     * 
-     * In the case that the encoder has a gear ratio to the motor, this should
-     * be ratio * encoder revs = object revs
-     */
-    protected double gearRatio = 1;
-    // TODO: do we want gear ratio between motor and encoder too? doesn't really matter but
-
-    /**
-     * Set the gear ratio from the motor to the object the motor is moving
-     * 
-     * In the case that the encoder has a gear ratio to the motor, this should
-     * be ratio * encoder revs = object revs
-     * or generally ratio * encoder units = object units
-     */
-    public void setGearRatio(double ratio) {
-        gearRatio = ratio;
-    }
-
-
-
-    /** Set the ratio of length units to use to revolutions */
-    public void setLengthScale(double scale) {
-        lengthScale = scale;
-    }
-
-    /** Specify the radius of the motion for object the motor is moving */
-    public void setRadius(double radius) {
-        // 1 rev = 2*pi*r[distance units]
-        lengthScale = 2 * Math.PI * radius;
-    }
-
-    public void setLengthScaleDeg() {
-        // 360 deg = 1 rev
-        lengthScale = 360;
-    }
-
-
-
     /**
      * Return the position read on the encoder in preferred units
      * 
@@ -424,20 +396,27 @@ public abstract class BBMotorController {
         }
     }
 
+    public double getPosition(BaseUnit unit) {
+        Quantity theta_nu = new Quantity(getPosition_nu(), THETA_UNIT_NU);
+
+        if (unit.getDimension() == Dimension.Length) {
+            if (radius != null) {
+                return theta_nu.to(THETA_UNIT_PU).divide(Units.RAD).multiply(radius).to(unit).getValue();
+            } else {
+                return 0; // rip
+            }
+        } else if (unit.getDimension() == Dimension.Angle) {
+            return theta_nu.to(unit).getValue();
+        } else {
+            return 0; // rip
+        }
+    }
+
 
 
     public enum PositionControl {
         Position,
         MotionMagic // TODO: SmartMotion?
-    }
-
-
-
-    /** Default to 1s. For example, timeScale=60 means measurements in (whatever)PM. Seconds per time unit*/
-    protected double timeScale = 1;
-
-    public void setTimeScale(double scale) {
-        timeScale = scale;
     }
 
 

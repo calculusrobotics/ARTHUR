@@ -18,6 +18,9 @@ import frc.robot.utils.control.pidf.PID;
 
 import edu.wpi.first.wpilibj.RobotBase;
 
+import frc.robot.utils.math.units.Units;
+import frc.robot.utils.math.units.Quantity;
+
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the TimedRobot
@@ -52,19 +55,20 @@ public class Robot extends TimedRobot {
 
 
         talon = new BBTalonSRX(1);
+        talon.setRadius(new Quantity(2, Units.IN));
         //talon.setRadius(2); // 4 inch wheels on JUNIOR I think
-        talon.addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
+        // talon.addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
 
-        PID constants = new PID(
-            ControlType.PID,
-            0.01,
-            0,
-            0
-        );
+        // PID constants = new PID(
+        //     ControlType.PID,
+        //     0.01,
+        //     0,
+        //     0
+        // );
 
-        talon.addPID(constants);
-        // command two rotations using MotioMagic
-        talon.cmdPosition(2, ControlType.PID);
+        // talon.addPID(constants);
+        // // command two rotations using MotioMagic
+        // talon.cmdPosition(2, ControlType.PID);
     }
 
     /**
@@ -77,8 +81,11 @@ public class Robot extends TimedRobot {
      */
     @Override
     public void robotPeriodic() {
+        SmartDashboard.putNumber("pos (rev)", talon.getPosition());
+        SmartDashboard.putNumber("pos (ticks)", talon.getPosition_nu());
+
         SmartDashboard.putNumber("encoder reading (in)", talon.getPosition());
-        SmartDashboard.putNumber("encoder reading (ticks)", talon.getPosition_ticks());
+        SmartDashboard.putNumber("encoder reading (ticks)", talon.getPosition_nu());
     }
 
     /**
