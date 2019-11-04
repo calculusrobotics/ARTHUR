@@ -15,6 +15,7 @@ import frc.robot.utils.math.units.BaseUnit;
 
 import com.ctre.phoenix.motorcontrol.FeedbackDevice;
 import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.StatusFrameEnhanced;
 
 
 public class BBTalonSRX extends BBMotorController {
@@ -93,6 +94,7 @@ public class BBTalonSRX extends BBMotorController {
     protected void addQuadratureEncoder(QuadratureEncoder sensor) {
         MOTOR.configSelectedFeedbackSensor(FeedbackDevice.QuadEncoder);
         MOTOR.setSelectedSensorPosition(0);
+        MOTOR.setStatusFramePeriod(StatusFrameEnhanced.Status_3_Quadrature, 100);
     }
 
     @Override
@@ -113,7 +115,7 @@ public class BBTalonSRX extends BBMotorController {
     }
 
     @Override
-    protected BaseUnit getLengthUnit_nu() {
+    protected BaseUnit getThetaUnit_nu() {
         if (sensor == null) {
             return null;
         }

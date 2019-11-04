@@ -110,7 +110,7 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    protected BaseUnit getLengthUnit_nu() {
+    protected BaseUnit getThetaUnit_nu() {
         return Units.REV;
     }
     @Override
