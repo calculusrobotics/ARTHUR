@@ -68,12 +68,12 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public void cmdPosition_nu(double val_nu, ControlType controlMethod) {
+    public void cmdPosition_native(double val_nu, ControlType controlMethod) {
         // RevRobotics also has a ControlType class :/
         com.revrobotics.ControlType mode;
 
         switch (controlMethod) {
-            case PID: {
+            case Position: {
                 mode = com.revrobotics.ControlType.kPosition;
                 break;
             }
@@ -87,6 +87,12 @@ public class BBSparkMax extends BBMotorController {
         }
 
         PID_CONTROLLER.setReference(val_nu, mode, pidSlot);
+    }
+
+    @Override
+    public void cmdPercent_native(double perc) {
+        // TODO: why is this pid
+        PID_CONTROLLER.setReference(perc, com.revrobotics.ControlType.kDutyCycle);
     }
 
     @Override

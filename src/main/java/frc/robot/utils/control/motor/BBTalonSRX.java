@@ -9,7 +9,6 @@ import frc.robot.utils.control.pidf.PID;
 import frc.robot.utils.control.pidf.PIDF;
 import frc.robot.utils.control.encoder.QuadratureEncoder;
 
-import frc.robot.utils.math.units.Unit;
 import frc.robot.utils.math.units.Units;
 import frc.robot.utils.math.units.BaseUnit;
 
@@ -59,13 +58,13 @@ public class BBTalonSRX extends BBMotorController {
 
 
     @Override
-    public void cmdPosition_nu(double val_nu, ControlType controlMethod) {
+    public void cmdPosition_native(double val_nu, ControlType controlMethod) {
         ControlMode mode;
 
         int ticks = (int) Math.round(val_nu);
 
         switch (controlMethod) {
-            case PID: {
+            case Position: {
                 mode = ControlMode.Position;
                 break;
             }
@@ -79,6 +78,11 @@ public class BBTalonSRX extends BBMotorController {
         }
 
         MOTOR.set(mode, ticks);
+    }
+
+    @Override
+    public void cmdPercent_native(double perc) {
+        MOTOR.set(ControlMode.PercentOutput, perc);
     }
 
     @Override

@@ -55,7 +55,14 @@ public abstract class BBMotorController {
      * that follow
      */
 
-    
+
+
+    /** MotionMagic parameters to be used */
+    protected MotionMagic motionMagic;
+
+
+
+
 
     /*
      * While TalonSRX reserves 2 slots for PIDF constants (0 and 1), SparkMax does not
@@ -79,21 +86,72 @@ public abstract class BBMotorController {
      */
     protected HashMap<String, Integer> pidNames;
 
+    protected abstract int getMaxPIDSlots();
+    protected final int PID_SLOTS = getMaxPIDSlots();
+    protected PID[] loadedPIDs = new PID[PID_SLOTS];
+
+    protected int activePIDSlot = 0;
 
 
-    /** MotionMagic parameters to be used */
-    protected MotionMagic motionMagic;
 
+    public abstract void selectPIDSlot(int i);
+    protected abstract void loadPID(PID pid, int slot);
+    protected void loadPID(PID pid) {
+        loadPID(pid, loadedPIDs.length - 1);
+    }
 
+    public int findPID(ControlType controlType) {
+        for (int i = 0; i < loadedPIDs.length; i++) {
+            if (loadedPIDs[i] != null && loadedPIDs[i].getControlType() == controlType) {
+                return i;
+            }
+        }
 
-    /**
-     * Try to set PID constants of the motor upon addition to pidConstants ArrayList
-     * 
-     * Will only work for first few (2 for CTRE) slots until there are no more available
-     * PID slots in the wrapped motor controller and will have to be changed by the
-     * BBMotorController.
-     */
-    protected abstract void trySetPID(int pidID);
+        return -1;
+    }
+
+    protected void setPID(PID pid) {
+        for (int i = 0; i < loadedPIDs.length; i++) {
+            if (loadedPIDs[i] != null && loadedPIDs[i] == pid) {
+                selectPIDSlot(i);
+
+                return;
+            }
+        }
+
+        loadPID(pid);
+    }
+
+    public void setPID(int pidID) {
+        setPID(pidConstants.get(pidID));
+    }
+
+    public void setPID(String pidName) {
+        setPID(pidConstants.get(pidNames.get(pidName)));
+    }
+
+    public void setPID(ControlType controlType) {
+        int slot = findPID(controlType);
+
+        if (slot != -1) {
+            selectPIDSlot(slot);
+            return;
+        }
+
+        for (int i = 0; i < pidConstants.size(); i++) {
+            PID pid = pidConstants.get(i);
+
+            if (pid.getControlType() == controlType) {
+                setPID(pid);
+
+                return;
+            }
+        }
+
+        // rip if you got here
+    }
+    
+
 
     /**
      * Add a set of PID constants to the motor controller's stored set
@@ -130,7 +188,7 @@ public abstract class BBMotorController {
         return id;
     }
 
-    protected int activePIDSlot = 0;
+    
     public int getActivePIDSlot() {
         return activePIDSlot;
     }
@@ -291,7 +349,7 @@ public abstract class BBMotorController {
      * @param ticks encoder ticks to command the motor to
      * @param controlMethod control method (MotionMagic or PID) to be used
      */
-    protected abstract void cmdPosition_nu(double val_nu, ControlType controlMethod);
+    protected abstract void cmdPosition_native(double val_nu, ControlType controlMethod);
 
     public void cmdPosition(double pos, ControlType controlMethod, int pidSlot) {
         if (controlMethod.getVariable() != ControlType.Variable.Position) {
@@ -303,13 +361,23 @@ public abstract class BBMotorController {
         if (positionMeasurement == PositionMeasurement.Angle) {
             Quantity quant = new Quantity(pos, THETA_UNIT_PU);
 
-            cmdPosition_nu(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+            cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
         } else if (positionMeasurement == PositionMeasurement.Distance) {
             // l = r theta
             // theta = l / r and also radians are pretty rad
             Quantity quant = new Quantity(pos, LENGTH_UNIT_PU).divide(radius).multiply(Units.RAD);
 
-            cmdPosition_nu(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+            cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+        }
+    }
+
+    public void cmdPosition(double pos, ControlType controlMethod, String pidName) {
+        Integer pidID = pidNames.get(pidName);
+
+        if (pidID == null) {
+            return; // rip ig
+        } else {
+            cmdPosition(pos, controlMethod, pidID);
         }
     }
 
@@ -325,14 +393,32 @@ public abstract class BBMotorController {
         setPIDSlot(pidSlot);
 
         if (quant.getUnit().isCompatible(THETA_UNIT_PU)) {
-            cmdPosition_nu(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+            cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
         } else if (quant.getUnit().isCompatible(LENGTH_UNIT_PU)) {
-            cmdPosition_nu(quant.divide(radius).multiply(Units.RAD).to(THETA_UNIT_NU).getValue(), controlMethod);
+            cmdPosition_native(quant.divide(radius).multiply(Units.RAD).to(THETA_UNIT_NU).getValue(), controlMethod);
+        }
+    }
+
+    public void cmdPosition(Quantity quant, ControlType controlMethod, String pidName) {
+        Integer pidID = pidNames.get(pidName);
+
+        if (pidID == null) {
+            return;
+        } else {
+            cmdPosition(quant, controlMethod, pidID);
         }
     }
 
     public void cmdPosition(Quantity quant, ControlType controlMethod) {
         cmdPosition(quant, controlMethod, 0);
+    }
+
+
+
+    protected abstract void cmdPercent_native(double perc);
+
+    public void cmdPercent(double perc) {
+        cmdPercent_native(perc);
     }
 
 

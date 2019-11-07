@@ -60,4 +60,6 @@ public class PID {
     public double getKI() { return KI; }
     public double getKD() { return KD; }
     public double getIZone() { return iZone; }
+
+    public ControlType getControlType() { return CONTROL_TYPE; }
 }

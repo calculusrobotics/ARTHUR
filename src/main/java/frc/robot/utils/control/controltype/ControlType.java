@@ -1,7 +1,7 @@
 package frc.robot.utils.control.controltype;
 
 public enum ControlType {
-    PID (Variable.Position),
+    Position (Variable.Position),
     MotionMagic (Variable.Position),
     Velocity (Variable.Velocity),
     Current (Variable.Current),
