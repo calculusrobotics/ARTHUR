@@ -59,7 +59,12 @@ public class Units {
     // Momentum
     public static final Unit GB = (new UnitBuilder()).num(KG, M).denom(S).name("gb").make(); // 1 greenberg = 1 kgm/s
     
-    
     // Force
     public static final Unit N = (new UnitBuilder()).num(Units.KG, Units.M).denom(Units.S, Units.S).make();
+
+    // Charge
+    public static final BaseUnit C = new BaseUnit(Dimension.Charge, 1, "C");
+
+    // Current
+    public static final Unit A = (new UnitBuilder()).num(C).denom(S).name("A").make();
 }

@@ -9,6 +9,7 @@ public class BaseUnit {
         Length,
         Angle,
         Mass,
+        Charge,
         Time
     }
 

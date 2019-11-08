@@ -1,19 +1,21 @@
 package frc.robot.utils.control.motionprofile.motionmagic;
 
-public class MotionMagic {
-    private final double ACC;
-    private final double CRUISE_VELOCITY;
+import frc.robot.utils.math.units.Quantity;
 
-    public MotionMagic(double acc, double cruiseVelocity) {
+public class MotionMagic {
+    private final Quantity ACC;
+    private final Quantity CRUISE_VELOCITY;
+
+    public MotionMagic(Quantity acc, Quantity cruiseVelocity) {
         ACC = acc;
         CRUISE_VELOCITY = cruiseVelocity;
     }
 
-    public double getAcceleration() {
+    public Quantity getAcceleration() {
         return ACC;
     }
 
-    public double getCruiseVelocity() {
+    public Quantity getCruiseVelocity() {
         return CRUISE_VELOCITY;
     }
 }

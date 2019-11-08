@@ -8,6 +8,7 @@ import frc.robot.utils.control.controltype.ControlType;
 import frc.robot.utils.control.pidf.PID;
 import frc.robot.utils.control.motionprofile.motionmagic.MotionMagic;
 import frc.robot.utils.control.MotorInfo;
+import frc.robot.utils.control.MotionConfig;
 
 import frc.robot.utils.control.encoder.*;
 
@@ -70,81 +71,82 @@ public abstract class BBMotorController {
      * implement it ourselves.
      */
     /**
-     * ArrayList of PID constants that are stored in our motor controller wrapper objects.
-     * Internally, TalonSRXs can store at most 2, but we can store more in motor controller
-     * objects in our code so long as we can efficiently communicate when to switch to what set of
-     * constants to the provided CTRE/RevRobotics/... motor controller objects.
+     * ArrayList of MotionConfigs that are stored in our motor controller wrapper objects.
+     * Internally, TalonSRXs can store at most 2 and SparkMaxes can store 4, but we can store
+     * more in motor controller objects in our code so long as we can efficiently communicate
+     * when to switch to what configuration to the provided CTRE/RevRobotics/...
+     * motor controller objects.
      */
-    protected ArrayList<PID> pidConstants;
+    protected ArrayList<MotionConfig> motionConfigs;
     /**
-     * To facilitate keeping track of which PID(F) constants correspond to what "slot" in
-     * our wrapper class (which then loosely corresponds to a slot in the TalonSRX if using
+     * To facilitate keeping track of which MotionConfigs correspond to what "slot" in
+     * our wrapper class (which then loosely corresponds to a slot in the motor controller if using
      * those), we can give names to each slot.
      * 
-     * If no name is provided, will default to "PID[NUMBER]" where [NUMBER] is the number
-     * of the slot as its added (first -> 0, second -> 1, ...)
+     * If no name is provided, will default to "Config[NUMBER]" where [NUMBER] is the number
+     * of the (internal) slot as its added (first -> 0, second -> 1, ...)
      */
-    protected HashMap<String, Integer> pidNames;
+    protected HashMap<String, Integer> motionConfigNames;
 
     /**
-     * Get the number of available PID slots
+     * Get the number of available motion configurations in wraooed motor controller
      * 
-     * @return number of available PID slots
+     * @return number of available motion configurations (slots)
      */
-    protected abstract int getMaxPIDSlots();
-    /** number of available PID slots */
-    protected final int PID_SLOTS = getMaxPIDSlots();
-    /** Array of PID IDs in pidConstants that are currently loaded into motor controller */
-    protected int[] loadedPIDs = new int[PID_SLOTS];
+    protected abstract int getMaxMotionSlots();
+    /** number of available motion configurations */
+    protected final int MOTION_SLOTS = getMaxMotionSlots();
+    /** Array of motion config IDs in slots that are currently loaded into motor controller */
+    protected int[] loadedMotionConfigs = new int[MOTION_SLOTS];
     /**
-     * Number of PID slots in used (loaded in motor controller).
-     * Not equal to loadedPIDs.length in general: this would be so only if every
-     * available PID slot was in use
+     * Number of motion configuration loaded in motor controller.
+     * Not equal to loadedMotionConfigs.length in general: this would be so only if every
+     * available slot was in use
      */
     protected int slotsUsed = 0;
 
 
 
     /**
-     * Select the i-th PID slot loaded into the motor controller
+     * Select the i-th motion config loaded into the motor controller for use
      * 
      * @param i number of the slot to be selected
      */
-    public abstract void selectPIDSlot(int i);
+    public abstract void selectMotionConfigSlot(int i);
     /**
-     * Load in a set of PID constants stored in the BBMotorController into the
+     * Load in a motion slot stored in the BBMotorController into the
      * wrapped motor controller object.
      * 
-     * @param pidID id of PID in pidConstants
+     * @param configID id of motion config in motionConfigs
      * @param slot slot to load into
      */
-    protected abstract void loadPID(int pidID, int slot);
+    protected abstract int loadMotionConfig(int configID, int slot);
     /**
-     * Load in a set of PID constants stored in the BBMotorController into the
-     * wrapped motor controller object. Defaults to the least used PID slot
+     * Load in a motion configuration stored in the BBMotorController into the
+     * wrapped motor controller object. Defaults to the least used slot
      * in terms of amount of times its been reloaded into the motor controller
      * (probably not the best way but also how would you get to this point?
      * (also very overkill)).
      * 
-     * @param pidID id of PID in pidConstants
+     * @param configID id of motion configuration in motionConfigs
      * 
-     * @return slot PID was loaded into
+     * @return slot it was loaded into
      */
-    protected int loadPID(int pidID) {
+    protected int loadMotionConfig(int configID) {
         // which slot to laod into
         int slot;
 
         // if no slots are unused, look for least used slot to swap in a new set of constants
-        if (slotsUsed >= PID_SLOTS) {
+        if (slotsUsed >= MOTION_SLOTS) {
             // to find the minimum uses and corresponding slot, first assume last one
-            int minUses = pidConstants.get(loadedPIDs[loadedPIDs.length - 1]).getUses();
-            slot = loadedPIDs.length - 1;
+            int minUses = motionConfigs.get(loadedMotionConfigs[loadedMotionConfigs.length - 1]).getUses();
+            slot = loadedMotionConfigs.length - 1;
 
             // loop through all slots in reverse order (except for last one, already covered)
             // to try to find a smaller amount of uses
-            for (int i = loadedPIDs.length - 2; i >= 0; i++) {
-                // number of uses for this set of PID constants
-                int uses = pidConstants.get(loadedPIDs[i]).getUses();
+            for (int i = loadedMotionConfigs.length - 2; i >= 0; i++) {
+                // number of uses for this motion configuration
+                int uses = motionConfigs.get(loadedMotionConfigs[i]).getUses();
 
                 // test if its a new minimum
                 if (uses < minUses) {
@@ -155,32 +157,31 @@ public abstract class BBMotorController {
             }
         } else {
             // if haven't used all available slots, might as well load it into the motor controller
+            // in the next unused slot
             slot = slotsUsed;
             // using a new slot now
             slotsUsed++;
         }
 
         // "use" this new set of PID constants
-        pidConstants.get(pidID).use();
+        motionConfigs.get(configID).use();
 
-        // load it in
-        loadPID(pidID, slot);
-
-        return slot;
+        // load it in now that you know which slot to use
+        return loadMotionConfig(configID, slot);
     }
 
     /**
-     * Find a set of known (not loaded) PID constants by control type
+     * Find a motion configuration by provided control type
      * 
-     * @param controlType control type the PID constants provide
+     * @param controlType control type the motion configuration provides
      * 
-     * @return location of possible PID constants to use in pidConstants or -1 if none found
+     * @return location of possible motion configuration to use in motionConfigs or -1 if none found
      */
-    public int findPID(ControlType controlType) {
-        // loop through constants to look for a matching control type
-        for (int i = 0; i < pidConstants.size(); i++) {
+    public int findMotionConfig(ControlType controlType) {
+        // loop through configs to look for a matching control type
+        for (int i = 0; i < motionConfigs.size(); i++) {
             // test for matching control type of this set of PID constants
-            if (pidConstants.get(i).getControlType() == controlType) {
+            if (motionConfigs.get(i).getControlType() == controlType) {
                 return i;
             }
         }
@@ -190,96 +191,100 @@ public abstract class BBMotorController {
     }
 
     /**
-     * Set the used set of PID constants by position in pidConstants
+     * Set the used motion configuration by position in motionConfigs
      * 
-     * @param pidID index of PID to use in pidConstants
+     * @param configID index of motion configuration to use in motionConfigs
+     * 
+     * @return slot slot the configuration was loaded into in motor controller
      */
-    public void setPID(int pidID) {
-        // test if the PID is already loaded, and if it is, select it
+    public int setMotionConfig(int configID) {
+        // test if the configuration is already loaded, and if it is, select it
         for (int i = 0; i < slotsUsed; i++) {
-            if (loadedPIDs[i] == pidID) {
-                selectPIDSlot(i);
+            if (loadedMotionConfigs[i] == configID) {
+                selectMotionConfigSlot(i);
 
-                return;
+                return i;
             }
         }
 
-        // load the PID in and get the slot to which it was loaded
-        int slot = loadPID(pidID);
+        // load the configuration in and get the slot to which it was loaded
+        int slot = loadMotionConfig(configID);
         // select the slot it was loaded into
-        selectPIDSlot(slot);
+        selectMotionConfigSlot(slot);
+
+        return slot;
     }
 
     /**
-     * Set the used set of PID constants by name, or do nothing if
+     * Set the used motion configuration by name, or do nothing if
      * not a recognized name.
      * 
-     * @param pidName name of PID constants to use
+     * @param configName name of motion configuration to use
      */
-    public void setPID(String pidName) {
+    public void setMotionConfig(String configName) {
         // make sure it is a recognized name first before setting it
-        if (pidNames.containsKey(pidName)) {
-            setPID(pidNames.get(pidName));
+        if (motionConfigNames.containsKey(configName)) {
+            setMotionConfig(motionConfigNames.get(configName));
         }
     }
 
     /**
-     * Set the used set of PID constants by control type, or do nothing if
+     * Set the used motion configuration by control type, or do nothing if
      * no matching control type is available
      * 
-     * @param controlType control type to be provided by the PID
+     * @param controlType control type to be provided by the motion configuration
      */
-    public void setPID(ControlType controlType) {
-        // try to find a set of corresponding PID constants
-        int pidID = findPID(controlType);
+    public void setMotionConfig(ControlType controlType) {
+        // try to find a set of corresponding configuration
+        int configID = findMotionConfig(controlType);
 
-        // if no set with the desired control type found, do nothing
-        if (pidID == -1) { return; } // rip
+        // if no configuration with the desired control type found, do nothing
+        if (configID == -1) { return; } // rip
         // set the PID to the found ID
-        setPID(pidID);
+        setMotionConfig(configID);
     }
 
 
 
     /**
-     * Add a set of PID constants to the motor controller's stored set
+     * Add a motion configuration to the motor controller's stored set
      * 
-     * @param constants PID(F) constants to add to set of internally stored constants
+     * @param config motion configuration to add to set of internally stored configurations
      * 
-     * @return numeric ID of these constants
+     * @return numeric ID of this configuration
      */
-    public int addPID(PID constants) {
-        // get the ID to use in pidConstants
-        int id = pidConstants.size();
+    public int addMotionConfiguration(MotionConfig config) {
+        // get the ID to use in motionConfigs
 // haha funny FRC number 254
+        int id = motionConfigs.size();
         // give it a default name
-        String name = "PID" + id;
+        String name = "Config" + id;
 
-        // add the PID with the default name
-        return addPID(constants, name);
+        // add the motion configuration with the default name
+        return addMotionConfiguration(config, name);
     }
 
     /**
-     * Add a set of PID constants to the motor controller's stored set,
+     * Add a motion configuration to the motor controller's stored set,
      * indexed by a name
      * 
-     * @param constants PID(F) constants to add to set of internally stored constants
-     * @param name name of these PID(F) constants
+     * @param config configuration to add to set of internally stored configurations
+     * @param name name of this configuration
      * 
-     * @return numeric ID of these constants
+     * @return numeric ID of this configuration
      */
-    public int addPID(PID constants, String name) {
-        // get the ID to use in pidConstants
-        int id = pidConstants.size();
+    public int addMotionConfiguration(MotionConfig config, String name) {
+        // get the ID to use in motionConfigs
+        int id = motionConfigs.size();
 
-        // add the constants to the stored ArrayList
-        pidConstants.add(constants);
+        // add the configuration to the stored ArrayList
+        motionConfigs.add(config);
         // name corresponds to id-th set in pidConstants
-        pidNames.put(name, id);
+        motionConfigNames.put(name, id);
 
         // load in the first few until no more unused slots
-        if (slotsUsed < PID_SLOTS) {
-            loadPID(id, slotsUsed);
+        if (slotsUsed < MOTION_SLOTS) {
+            loadMotionConfig(id, slotsUsed);
         }
 
         // return the ID
@@ -429,6 +434,16 @@ public abstract class BBMotorController {
 
 
 
+    public Quantity toAngular(Quantity tangential) {
+        return tangential.divide(radius).multiply(Units.RAD);
+    }
+
+    public Quantity toTangential(Quantity angular) {
+        return angular.divide(Units.RAD).multiply(radius);
+    }
+
+
+
 
 
     /**
@@ -439,12 +454,12 @@ public abstract class BBMotorController {
      */
     protected abstract void cmdPosition_native(double val_nu, ControlType controlMethod);
 
-    public void cmdPosition(double pos, ControlType controlMethod, int pidSlot) {
+    public void cmdPosition(double pos, ControlType controlMethod, int configID) {
         if (controlMethod.getVariable() != ControlType.Variable.Position) {
             return;
         }
 
-        setPID(pidSlot);
+        setMotionConfig(configID);
 
         if (positionMeasurement == PositionMeasurement.Angle) {
             Quantity quant = new Quantity(pos, THETA_UNIT_PU);
@@ -459,8 +474,8 @@ public abstract class BBMotorController {
         }
     }
 
-    public void cmdPosition(double pos, ControlType controlMethod, String pidName) {
-        Integer pidID = pidNames.get(pidName);
+    public void cmdPosition(double pos, ControlType controlMethod, String configName) {
+        Integer pidID = motionConfigNames.get(configName);
 
         if (pidID == null) {
             return; // rip ig
@@ -470,19 +485,19 @@ public abstract class BBMotorController {
     }
 
     public void cmdPosition(double pos, ControlType controlMethod) {
-        int idx = findPID(controlMethod);
+        int idx = findMotionConfig(controlMethod);
 
         if (idx != -1) {
             cmdPosition(pos, controlMethod, idx);
         }
     }
 
-    public void cmdPosition(Quantity quant, ControlType controlMethod, int pidSlot) {
+    public void cmdPosition(Quantity quant, ControlType controlMethod, int configID) {
         if (controlMethod.getVariable() != ControlType.Variable.Position) {
             return;
         }
 
-        setPID(pidSlot);
+        setMotionConfig(configID);
 
         if (quant.getUnit().isCompatible(THETA_UNIT_PU)) {
             cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
@@ -491,8 +506,8 @@ public abstract class BBMotorController {
         }
     }
 
-    public void cmdPosition(Quantity quant, ControlType controlMethod, String pidName) {
-        Integer pidID = pidNames.get(pidName);
+    public void cmdPosition(Quantity quant, ControlType controlMethod, String configName) {
+        Integer pidID = motionConfigNames.get(configName);
 
         if (pidID == null) {
             return;
@@ -502,7 +517,7 @@ public abstract class BBMotorController {
     }
 
     public void cmdPosition(Quantity quant, ControlType controlMethod) {
-        int idx = findPID(controlMethod);
+        int idx = findMotionConfig(controlMethod);
 
         if (idx != -1) {
             cmdPosition(quant, controlMethod, idx);
@@ -549,13 +564,30 @@ public abstract class BBMotorController {
 
 
     /** Configure MotionMagic parameters to use with native units */
-    protected abstract void configMotionMagic_nu(double acc, double vel);
+    protected abstract void configMotionMagic_nu(double acc, double vel, int pidSlot);
 
-    public void configMotionMagic(MotionMagic mm) {
-        Quantity vel_pu = new Quantity(mm.getCruiseVelocity(), OMEGA_UNIT_PU);
-        Quantity acc_pu = new Quantity(mm.getAcceleration(), ALPHA_UNIT_PU);
+    public void configMotionMagic(MotionMagic mm, int configID) {
+        Quantity vel = mm.getCruiseVelocity();
+        Quantity acc = mm.getAcceleration();
 
-        configMotionMagic_nu(acc_pu.to(ALPHA_UNIT_NU).getValue(), vel_pu.to(OMEGA_UNIT_NU).getValue());
+        double vel_nu;
+        double acc_nu;
+
+        if (vel.getUnit().isCompatible(OMEGA_UNIT_PU)) {
+            vel_nu = vel.to(OMEGA_UNIT_NU).getValue();
+        } else {
+            vel_nu = toAngular(vel).to(OMEGA_UNIT_NU).getValue();
+        }
+
+        if (acc.getUnit().isCompatible(ALPHA_UNIT_PU)) {
+            acc_nu = acc.to(ALPHA_UNIT_PU).getValue();
+        } else {
+            acc_nu = toAngular(acc).to(ALPHA_UNIT_PU).getValue();
+        }
+
+        int slot = setMotionConfig(configID);
+
+        configMotionMagic_nu(acc_nu, vel_nu, slot);
 
         motionMagic = mm;
     }
