@@ -598,7 +598,7 @@ public abstract class BBMotorController {
 
     public enum PositionControl {
         Position,
-        MotionMagic // TODO: SmartMotion?
+        MotionMagic
     }
 
 

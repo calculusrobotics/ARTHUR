@@ -36,7 +36,6 @@ public class QuadratureEncoder extends SensorType {
 
 
 
-    // TODO: does SparkMax handle TPR = 4 * CPR the same way as TalonSRX?
     public int getCPR() {
         return CPR;
     }

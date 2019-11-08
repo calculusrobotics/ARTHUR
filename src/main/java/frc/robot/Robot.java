@@ -12,9 +12,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import frc.robot.utils.control.encoder.QuadratureEncoder;
-import frc.robot.utils.control.controltype.ControlType;
 import frc.robot.utils.control.motor.BBTalonSRX;
-import frc.robot.utils.control.pidf.PID;
 
 import frc.robot.utils.math.units.Units;
 import frc.robot.utils.math.units.Quantity;
@@ -53,9 +51,7 @@ public class Robot extends TimedRobot {
 
 
         talon = new BBTalonSRX(2);
-        // TODO: stuff
         talon.setRadius(new Quantity(2, Units.IN));
-        //talon.setRadius(2); // 4 inch wheels on JUNIOR I think
         talon.addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
 
         // PID constants = new PID(
