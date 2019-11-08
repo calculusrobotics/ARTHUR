@@ -23,6 +23,10 @@ public class PID {
 
     protected double iZone;
 
+    private int uses = 0;
+
+    
+
     /**
      * Generate a set of PID constants
      * 
@@ -62,4 +66,12 @@ public class PID {
     public double getIZone() { return iZone; }
 
     public ControlType getControlType() { return CONTROL_TYPE; }
+
+    public void use() {
+        uses++;
+    }
+
+    public int getUses() {
+        return uses;
+    }
 }

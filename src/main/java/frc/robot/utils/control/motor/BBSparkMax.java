@@ -44,7 +44,7 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public void trySetPID(int pidSlot) {
+    public void loadPID(int pidID, int pidSlot) {
         PID pid = pidConstants.get(pidSlot);
 
         PID_CONTROLLER.setP(pid.getKP(), pidSlot);
@@ -61,8 +61,13 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public void setPIDSlot(int pidSlot) {
+    public void selectPIDSlot(int pidSlot) {
         this.pidSlot = pidSlot;
+    }
+
+    @Override
+    protected int getMaxPIDSlots() {
+        return 4;
     }
 
 
@@ -92,7 +97,7 @@ public class BBSparkMax extends BBMotorController {
     @Override
     public void cmdPercent_native(double perc) {
         // TODO: why is this pid
-        PID_CONTROLLER.setReference(perc, com.revrobotics.ControlType.kDutyCycle);
+        PID_CONTROLLER.setReference(perc, com.revrobotics.ControlType.kDutyCycle, pidSlot);
     }
 
     @Override

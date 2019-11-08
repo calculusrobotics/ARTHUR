@@ -86,71 +86,159 @@ public abstract class BBMotorController {
      */
     protected HashMap<String, Integer> pidNames;
 
+    /**
+     * Get the number of available PID slots
+     * 
+     * @return number of available PID slots
+     */
     protected abstract int getMaxPIDSlots();
+    /** number of available PID slots */
     protected final int PID_SLOTS = getMaxPIDSlots();
-    protected PID[] loadedPIDs = new PID[PID_SLOTS];
+    /** Array of PID IDs in pidConstants that are currently loaded into motor controller */
+    protected int[] loadedPIDs = new int[PID_SLOTS];
+    /**
+     * Number of PID slots in used (loaded in motor controller).
+     * Not equal to loadedPIDs.length in general: this would be so only if every
+     * available PID slot was in use
+     */
+    protected int slotsUsed = 0;
 
-    protected int activePIDSlot = 0;
 
 
-
+    /**
+     * Select the i-th PID slot loaded into the motor controller
+     * 
+     * @param i number of the slot to be selected
+     */
     public abstract void selectPIDSlot(int i);
-    protected abstract void loadPID(PID pid, int slot);
-    protected void loadPID(PID pid) {
-        loadPID(pid, loadedPIDs.length - 1);
+    /**
+     * Load in a set of PID constants stored in the BBMotorController into the
+     * wrapped motor controller object.
+     * 
+     * @param pidID id of PID in pidConstants
+     * @param slot slot to load into
+     */
+    protected abstract void loadPID(int pidID, int slot);
+    /**
+     * Load in a set of PID constants stored in the BBMotorController into the
+     * wrapped motor controller object. Defaults to the least used PID slot
+     * in terms of amount of times its been reloaded into the motor controller
+     * (probably not the best way but also how would you get to this point?
+     * (also very overkill)).
+     * 
+     * @param pidID id of PID in pidConstants
+     * 
+     * @return slot PID was loaded into
+     */
+    protected int loadPID(int pidID) {
+        // which slot to laod into
+        int slot;
+
+        // if no slots are unused, look for least used slot to swap in a new set of constants
+        if (slotsUsed >= PID_SLOTS) {
+            // to find the minimum uses and corresponding slot, first assume last one
+            int minUses = pidConstants.get(loadedPIDs[loadedPIDs.length - 1]).getUses();
+            slot = loadedPIDs.length - 1;
+
+            // loop through all slots in reverse order (except for last one, already covered)
+            // to try to find a smaller amount of uses
+            for (int i = loadedPIDs.length - 2; i >= 0; i++) {
+                // number of uses for this set of PID constants
+                int uses = pidConstants.get(loadedPIDs[i]).getUses();
+
+                // test if its a new minimum
+                if (uses < minUses) {
+                    minUses = uses;
+                    // set the new slot to switch into
+                    slot = i;
+                }
+            }
+        } else {
+            // if haven't used all available slots, might as well load it into the motor controller
+            slot = slotsUsed;
+            // using a new slot now
+            slotsUsed++;
+        }
+
+        // "use" this new set of PID constants
+        pidConstants.get(pidID).use();
+
+        // load it in
+        loadPID(pidID, slot);
+
+        return slot;
     }
 
+    /**
+     * Find a set of known (not loaded) PID constants by control type
+     * 
+     * @param controlType control type the PID constants provide
+     * 
+     * @return location of possible PID constants to use in pidConstants or -1 if none found
+     */
     public int findPID(ControlType controlType) {
-        for (int i = 0; i < loadedPIDs.length; i++) {
-            if (loadedPIDs[i] != null && loadedPIDs[i].getControlType() == controlType) {
+        // loop through constants to look for a matching control type
+        for (int i = 0; i < pidConstants.size(); i++) {
+            // test for matching control type of this set of PID constants
+            if (pidConstants.get(i).getControlType() == controlType) {
                 return i;
             }
         }
 
+        // default to -1 if none found
         return -1;
     }
 
-    protected void setPID(PID pid) {
-        for (int i = 0; i < loadedPIDs.length; i++) {
-            if (loadedPIDs[i] != null && loadedPIDs[i] == pid) {
+    /**
+     * Set the used set of PID constants by position in pidConstants
+     * 
+     * @param pidID index of PID to use in pidConstants
+     */
+    public void setPID(int pidID) {
+        // test if the PID is already loaded, and if it is, select it
+        for (int i = 0; i < slotsUsed; i++) {
+            if (loadedPIDs[i] == pidID) {
                 selectPIDSlot(i);
 
                 return;
             }
         }
 
-        loadPID(pid);
+        // load the PID in and get the slot to which it was loaded
+        int slot = loadPID(pidID);
+        // select the slot it was loaded into
+        selectPIDSlot(slot);
     }
 
-    public void setPID(int pidID) {
-        setPID(pidConstants.get(pidID));
-    }
-
+    /**
+     * Set the used set of PID constants by name, or do nothing if
+     * not a recognized name.
+     * 
+     * @param pidName name of PID constants to use
+     */
     public void setPID(String pidName) {
-        setPID(pidConstants.get(pidNames.get(pidName)));
+        // make sure it is a recognized name first before setting it
+        if (pidNames.containsKey(pidName)) {
+            setPID(pidNames.get(pidName));
+        }
     }
 
+    /**
+     * Set the used set of PID constants by control type, or do nothing if
+     * no matching control type is available
+     * 
+     * @param controlType control type to be provided by the PID
+     */
     public void setPID(ControlType controlType) {
-        int slot = findPID(controlType);
+        // try to find a set of corresponding PID constants
+        int pidID = findPID(controlType);
 
-        if (slot != -1) {
-            selectPIDSlot(slot);
-            return;
-        }
-
-        for (int i = 0; i < pidConstants.size(); i++) {
-            PID pid = pidConstants.get(i);
-
-            if (pid.getControlType() == controlType) {
-                setPID(pid);
-
-                return;
-            }
-        }
-
-        // rip if you got here
+        // if no set with the desired control type found, do nothing
+        if (pidID == -1) { return; } // rip
+        // set the PID to the found ID
+        setPID(pidID);
     }
-    
+
 
 
     /**
@@ -161,9 +249,13 @@ public abstract class BBMotorController {
      * @return numeric ID of these constants
      */
     public int addPID(PID constants) {
+        // get the ID to use in pidConstants
         int id = pidConstants.size();
+// haha funny FRC number 254
+        // give it a default name
         String name = "PID" + id;
 
+        // add the PID with the default name
         return addPID(constants, name);
     }
 
@@ -177,25 +269,22 @@ public abstract class BBMotorController {
      * @return numeric ID of these constants
      */
     public int addPID(PID constants, String name) {
+        // get the ID to use in pidConstants
         int id = pidConstants.size();
 
+        // add the constants to the stored ArrayList
         pidConstants.add(constants);
         // name corresponds to id-th set in pidConstants
         pidNames.put(name, id);
 
-        trySetPID(id);
+        // load in the first few until no more unused slots
+        if (slotsUsed < PID_SLOTS) {
+            loadPID(id, slotsUsed);
+        }
 
+        // return the ID
         return id;
     }
-
-    
-    public int getActivePIDSlot() {
-        return activePIDSlot;
-    }
-
-
-
-    public abstract void setPIDSlot(int pidSlot);
 
 
 
@@ -309,7 +398,6 @@ public abstract class BBMotorController {
         if (timeUnit.getDimension() != BaseUnit.Dimension.Time) {
             return;
         }
-// haha funny FRC number 254
 
         SECOND_TIME_UNIT_PU = timeUnit;
 
@@ -356,7 +444,7 @@ public abstract class BBMotorController {
             return;
         }
 
-        setPIDSlot(pidSlot);
+        setPID(pidSlot);
 
         if (positionMeasurement == PositionMeasurement.Angle) {
             Quantity quant = new Quantity(pos, THETA_UNIT_PU);
@@ -382,7 +470,11 @@ public abstract class BBMotorController {
     }
 
     public void cmdPosition(double pos, ControlType controlMethod) {
-        cmdPosition(pos, controlMethod, 0);
+        int idx = findPID(controlMethod);
+
+        if (idx != -1) {
+            cmdPosition(pos, controlMethod, idx);
+        }
     }
 
     public void cmdPosition(Quantity quant, ControlType controlMethod, int pidSlot) {
@@ -390,7 +482,7 @@ public abstract class BBMotorController {
             return;
         }
 
-        setPIDSlot(pidSlot);
+        setPID(pidSlot);
 
         if (quant.getUnit().isCompatible(THETA_UNIT_PU)) {
             cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
@@ -410,7 +502,11 @@ public abstract class BBMotorController {
     }
 
     public void cmdPosition(Quantity quant, ControlType controlMethod) {
-        cmdPosition(quant, controlMethod, 0);
+        int idx = findPID(controlMethod);
+
+        if (idx != -1) {
+            cmdPosition(quant, controlMethod, idx);
+        }
     }
 
 

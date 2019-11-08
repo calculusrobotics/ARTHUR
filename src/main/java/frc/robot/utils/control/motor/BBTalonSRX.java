@@ -22,19 +22,13 @@ public class BBTalonSRX extends BBMotorController {
 
 
 
-    private int profileSlot0 = 0;
-    private int profileSlot1 = 0;
-
-
-
     public BBTalonSRX(int deviceID) {
         MOTOR = new WPI_TalonSRX(deviceID);
     }
 
 
 
-    @Override
-    protected void trySetPID(int pidID) {
+    protected void loadPID(int pidID, int slot) {
         PID pid = pidConstants.get(pidID);
 
         MOTOR.config_kP(pidID, pid.getKP());
@@ -48,10 +42,13 @@ public class BBTalonSRX extends BBMotorController {
         }
     }
 
+    @Override
+    protected int getMaxPIDSlots() { return 2; }
+
 
 
     @Override
-    public void setPIDSlot(int pidSlot) {
+    public void selectPIDSlot(int pidSlot) {
         MOTOR.selectProfileSlot(pidSlot, 0);
     }
 
