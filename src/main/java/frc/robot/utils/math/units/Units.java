@@ -32,39 +32,49 @@ public class Units {
     public static final BaseUnit FORTNIGHT   = new BaseUnit(DAY, 1/2.0, "fn");
 
     // Velocity
-    public static final Unit IN_PER_S = (new UnitBuilder()).num(IN).denom(S).make();
-    public static final Unit FT_PER_S = (new UnitBuilder()).num(FT).denom(S).make();
-    public static final Unit M_PER_S  = (new UnitBuilder()).num(M).denom(S).make();
-    public static final Unit FURLONGS_PER_FORTNIGHT = (new UnitBuilder()).num(FURLONG).denom(FORTNIGHT).make();
+    public static final Unit IN_PER_S = IN.divide(S);
+    public static final Unit FT_PER_S = FT.divide(S);
+    public static final Unit M_PER_S  = M.divide(S);
+    public static final Unit FURLONGS_PER_FORTNIGHT = FURLONG.divide(FORTNIGHT);
 
     // Acceleration
-    public static final Unit IN_PER_S2 = (new UnitBuilder()).num(IN).denom(S, S).make();
-    public static final Unit FT_PER_S2 = (new UnitBuilder()).num(FT).denom(S, S).make();
-    public static final Unit M_PER_S2  = (new UnitBuilder()).num(M).denom(S, S).make();
-    public static final Unit G_ACC         = (new UnitBuilder()).num(M).denom(S, S).coeff(9.80665).name("g's").make();
+    public static final Unit IN_PER_S2 = IN_PER_S.divide(S);
+    public static final Unit FT_PER_S2 = FT_PER_S.divide(S);
+    public static final Unit M_PER_S2  = M_PER_S.divide(S);
+    public static final Unit G_ACC     = (new UnitBuilder()).num(M).denom(S, S).coeff(9.80665).name("g's").make();
 
     // Angular velocity
-    public static final Unit RAD_PER_S = (new UnitBuilder()).num(RAD).denom(S).make();
-    public static final Unit DEG_PER_S = (new UnitBuilder()).num(DEG).denom(S).make();
-    public static final Unit REV_PER_S = (new UnitBuilder()).num(REV).denom(S).make();
-    public static final Unit RPM       = (new UnitBuilder()).num(REV).denom(MIN).make();
+    public static final Unit RAD_PER_S = RAD.divide(S);
+    public static final Unit DEG_PER_S = DEG.divide(S);
+    public static final Unit REV_PER_S = REV.divide(S);
+    public static final Unit RPM       = (new UnitBuilder()).num(REV).denom(MIN).name("RPM").make();
 
     // Angular acceleration
-    public static final Unit RAD_PER_S2 = (new UnitBuilder()).num(RAD).denom(S, S).make();
-    public static final Unit DEG_PER_S2 = (new UnitBuilder()).num(DEG).denom(S, S).make();
-    public static final Unit REV_PER_S2 = (new UnitBuilder()).num(REV).denom(S, S).make();
-    public static final Unit REV_PER_MIN_S       = (new UnitBuilder()).num(REV).denom(MIN, S).make();
-    public static final Unit REV_PER_MIN2       = (new UnitBuilder()).num(REV).denom(MIN, MIN).make();
+    public static final Unit RAD_PER_S2    = RAD_PER_S.divide(S);
+    public static final Unit DEG_PER_S2    = DEG_PER_S.divide(S);
+    public static final Unit REV_PER_S2    = REV_PER_S.divide(S);
+    public static final Unit REV_PER_MIN_S = RPM.divide(S);
+    public static final Unit REV_PER_MIN2  = RPM.divide(MIN);
 
     // Momentum
     public static final Unit GB = (new UnitBuilder()).num(KG, M).denom(S).name("gb").make(); // 1 greenberg = 1 kgm/s
     
     // Force
-    public static final Unit N = (new UnitBuilder()).num(Units.KG, Units.M).denom(Units.S, Units.S).make();
-
-    // Charge
-    public static final BaseUnit C = new BaseUnit(Dimension.Charge, 1, "C");
+    public static final Unit N = (new UnitBuilder()).num(Units.KG, Units.M).denom(Units.S, Units.S).name("N").make();
 
     // Current
-    public static final Unit A = (new UnitBuilder()).num(C).denom(S).name("A").make();
+    public static final BaseUnit A = new BaseUnit(Dimension.Current, 1, "A");
+
+    // Charge
+    public static final Unit C = (new UnitBuilder()).num(A, S).name("C").make();
+
+    // Voltage
+    public static final Unit V = (new UnitBuilder()).num(KG, M, M).denom(S, S, S, A).make();
+
+    // Resistance
+    // Java doesn't support Ω as a variable name
+    public static final Unit Ohm = (new UnitBuilder()).num(V).denom(A).name("Ω").make();
+
+    // Inductance
+    public static final Unit H = (new UnitBuilder()).num(Ohm, S.getUnit()).name("H").make();
 }

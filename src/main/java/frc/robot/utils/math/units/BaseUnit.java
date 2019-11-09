@@ -9,7 +9,7 @@ public class BaseUnit {
         Length,
         Angle,
         Mass,
-        Charge,
+        Current,
         Time
     }
 
@@ -244,5 +244,22 @@ public class BaseUnit {
         }
 
         return per;
+    }
+
+    public Unit multiply(BaseUnit unit2) {
+        return getUnit().multiply(unit2.getUnit());
+    }
+
+    public Unit multiply(Unit unit2) {
+// haha funny FRC number 254
+        return getUnit().multiply(unit2);
+    }
+
+    public Unit divide(BaseUnit unit2) {
+        return getUnit().divide(unit2.getUnit());
+    }
+
+    public Unit divide(Unit unit2) {
+        return getUnit().divide(unit2);
     }
 }
