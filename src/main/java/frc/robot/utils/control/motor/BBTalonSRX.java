@@ -28,28 +28,39 @@ public class BBTalonSRX extends BBMotorController {
 
 
 
-    protected void loadPID(int pidID, int slot) {
-        PID pid = pidConstants.get(pidID);
-
-        MOTOR.config_kP(pidID, pid.getKP());
-        MOTOR.config_kI(pidID, pid.getKI());
-        MOTOR.config_kD(pidID, pid.getKD());
-
-        if (pid instanceof PIDF) {
-            PIDF pidf = (PIDF) pid;
-
-            MOTOR.config_kF(pidID, pidf.getKF());
-        }
+    @Override
+    protected void loadPID(PID constants, int slot) {
+        MOTOR.config_kP(slot, constants.getKP());
+        MOTOR.config_kI(slot, constants.getKI());
+        MOTOR.config_kD(slot, constants.getKD());
+        MOTOR.config_IntegralZone(slot, (int) constants.getIZone());
     }
 
     @Override
-    protected int getMaxPIDSlots() { return 2; }
+    protected void loadPIDF(PIDF constants, int slot) {
+        loadPID(constants, slot);
 
-
+        MOTOR.config_kF(slot, constants.getKD());
+    }
 
     @Override
-    public void selectPIDSlot(int pidSlot) {
-        MOTOR.selectProfileSlot(pidSlot, 0);
+    protected void clearPIDF(int slot) {
+        MOTOR.config_kP(slot, 0);
+        MOTOR.config_kI(slot, 0);
+        MOTOR.config_kD(slot, 0);
+        MOTOR.config_kF(slot, 0);
+        MOTOR.config_IntegralZone(slot, 0);
+    }
+
+    @Override
+    protected int getMaxMotionSlots() { return 2; }
+
+
+
+    
+    @Override
+    public void selectMotionConfigSlot(int slot) {
+        MOTOR.selectProfileSlot(slot, 0);
     }
 
 
@@ -83,12 +94,19 @@ public class BBTalonSRX extends BBMotorController {
     }
 
     @Override
-    protected void configMotionMagic_nu(double acc, double vel) {
+    protected void loadMotionMagic(double acc, double vel, int slot) {
         int accInt = (int) Math.round(acc);
         int velInt = (int) Math.round(vel);
 
         MOTOR.configMotionAcceleration(accInt);
         MOTOR.configMotionCruiseVelocity(velInt);
+    }
+
+    @Override
+    protected void clearMotionMagic(int slot) {
+        // could set to 0, but TalonSRX actually doesn't store MM per slot
+        // and instead stores for the motor controller, so no need to
+        // (will never need to get wiped)
     }
 
     @Override

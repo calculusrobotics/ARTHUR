@@ -27,11 +27,9 @@ public class BBSparkMax extends BBMotorController {
     private final CANSparkMax MOTOR;
     private final CANPIDController PID_CONTROLLER;
 
-    private int pidSlot;
-
-
-
     private CANEncoder encoder;
+
+    private int slotInUse = 0;
 
 
 
@@ -44,29 +42,40 @@ public class BBSparkMax extends BBMotorController {
 
 
     @Override
-    public void loadPID(int pidID, int pidSlot) {
-        PID pid = pidConstants.get(pidSlot);
+    protected void loadPID(PID constants, int slot) {
+        PID_CONTROLLER.setP(constants.getKP(), slot);
+        PID_CONTROLLER.setI(constants.getKI(), slot);
+        PID_CONTROLLER.setD(constants.getKD(), slot);
+        PID_CONTROLLER.setIZone(constants.getIZone(), slot);
+    }
 
-        PID_CONTROLLER.setP(pid.getKP(), pidSlot);
-        PID_CONTROLLER.setI(pid.getKI(), pidSlot);
-        PID_CONTROLLER.setD(pid.getKD(), pidSlot);
+    @Override
+    protected void loadPIDF(PIDF constants, int slot) {
+        loadPID(constants, slot);
 
-        if (pid instanceof PIDF) {
-            PIDF pidf = (PIDF) pid;
+        PID_CONTROLLER.setFF(constants.getKF(), slot);
+    }
 
-            PID_CONTROLLER.setFF(pidf.getKF(), pidSlot);
-        }
+    @Override
+    protected void clearPIDF(int slot) {
+        // literally no idea how you'd here get considering there's FOUR slots...
+
+        PID_CONTROLLER.setP(0, slot);
+        PID_CONTROLLER.setI(0, slot);
+        PID_CONTROLLER.setD(0, slot);
+        PID_CONTROLLER.setFF(0, slot);
+        PID_CONTROLLER.setIZone(0, slot);
     }
 
 
 
     @Override
-    public void selectPIDSlot(int pidSlot) {
-        this.pidSlot = pidSlot;
+    public void selectMotionConfigSlot(int slot) {
+        this.slotInUse = slot;
     }
 
     @Override
-    protected int getMaxPIDSlots() {
+    protected int getMaxMotionSlots() {
         return 4;
     }
 
@@ -91,19 +100,25 @@ public class BBSparkMax extends BBMotorController {
             }
         }
 
-        PID_CONTROLLER.setReference(val_nu, mode, pidSlot);
+        PID_CONTROLLER.setReference(val_nu, mode, slotInUse);
     }
 
     @Override
     public void cmdPercent_native(double perc) {
         // TODO: why is this pid
-        PID_CONTROLLER.setReference(perc, com.revrobotics.ControlType.kDutyCycle, pidSlot);
+        PID_CONTROLLER.setReference(perc, com.revrobotics.ControlType.kDutyCycle, slotInUse);
     }
 
     @Override
-    protected void configMotionMagic_nu(double acc, double vel) {
-        PID_CONTROLLER.setSmartMotionMaxAccel(acc, pidSlot);
-        PID_CONTROLLER.setSmartMotionMaxVelocity(vel, pidSlot);
+    protected void loadMotionMagic(double acc, double vel, int slot) {
+        PID_CONTROLLER.setSmartMotionMaxAccel(acc, slot);
+        PID_CONTROLLER.setSmartMotionMaxVelocity(vel, slot);
+    }
+
+    @Override
+    protected void clearMotionMagic(int slot) {
+        PID_CONTROLLER.setSmartMotionMaxAccel(0, slot);
+        PID_CONTROLLER.setSmartMotionMaxVelocity(0, slot);
     }
 
     @Override

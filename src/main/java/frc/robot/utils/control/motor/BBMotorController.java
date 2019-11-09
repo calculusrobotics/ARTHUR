@@ -5,8 +5,9 @@ package frc.robot.utils.control.motor;
 import frc.robot.utils.data.DataWindow;
 
 import frc.robot.utils.control.controltype.ControlType;
-import frc.robot.utils.control.pidf.PID;
 import frc.robot.utils.control.motionprofile.motionmagic.MotionMagic;
+import frc.robot.utils.control.pidf.PID;
+import frc.robot.utils.control.pidf.PIDF;
 import frc.robot.utils.control.MotorInfo;
 import frc.robot.utils.control.MotionConfig;
 
@@ -77,7 +78,7 @@ public abstract class BBMotorController {
      * when to switch to what configuration to the provided CTRE/RevRobotics/...
      * motor controller objects.
      */
-    protected ArrayList<MotionConfig> motionConfigs;
+    protected ArrayList<MotionConfig> motionConfigs = new ArrayList<MotionConfig>();
     /**
      * To facilitate keeping track of which MotionConfigs correspond to what "slot" in
      * our wrapper class (which then loosely corresponds to a slot in the motor controller if using
@@ -86,7 +87,7 @@ public abstract class BBMotorController {
      * If no name is provided, will default to "Config[NUMBER]" where [NUMBER] is the number
      * of the (internal) slot as its added (first -> 0, second -> 1, ...)
      */
-    protected HashMap<String, Integer> motionConfigNames;
+    protected HashMap<String, Integer> motionConfigNames = new HashMap<String, Integer>();
 
     /**
      * Get the number of available motion configurations in wraooed motor controller
@@ -107,12 +108,50 @@ public abstract class BBMotorController {
 
 
 
+    protected abstract void clearPIDF(int slot);
+    protected abstract void clearMotionMagic(int slot);
+    
+    protected void clearMotionSlot(int slot) {
+    	clearPIDF(slot);
+    	clearMotionMagic(slot);
+    }
+    
+    protected abstract void loadPID(PID constants, int slot);
+    protected abstract void loadPIDF(PIDF constants, int slot);
+    
+    /** Configure MotionMagic parameters to use with native units */
+    protected abstract void loadMotionMagic(double acc, double vel, int slot);
+
+    protected void loadMotionMagic(MotionMagic mm, int slot) {
+        Quantity vel = mm.getCruiseVelocity();
+        Quantity acc = mm.getAcceleration();
+
+        double vel_nu;
+        double acc_nu;
+
+        if (vel.getUnit().isCompatible(OMEGA_UNIT_NU)) {
+            vel_nu = vel.to(OMEGA_UNIT_NU).getValue();
+        } else {
+            vel_nu = toAngular(vel).to(OMEGA_UNIT_NU).getValue();
+        }
+
+        if (acc.getUnit().isCompatible(ALPHA_UNIT_NU)) {
+            acc_nu = acc.to(ALPHA_UNIT_NU).getValue();
+        } else {
+            acc_nu = toAngular(acc).to(ALPHA_UNIT_NU).getValue();
+        }
+
+        loadMotionMagic(acc_nu, vel_nu, slot);
+
+        motionMagic = mm;
+    }
+    
     /**
-     * Select the i-th motion config loaded into the motor controller for use
+     * Select a motion config loaded into the motor controller for use
      * 
-     * @param i number of the slot to be selected
+     * @param slot number of the slot to be selected
      */
-    public abstract void selectMotionConfigSlot(int i);
+    public abstract void selectMotionConfigSlot(int slot);
     /**
      * Load in a motion slot stored in the BBMotorController into the
      * wrapped motor controller object.
@@ -120,7 +159,40 @@ public abstract class BBMotorController {
      * @param configID id of motion config in motionConfigs
      * @param slot slot to load into
      */
-    protected abstract int loadMotionConfig(int configID, int slot);
+    protected int loadMotionConfig(int configID, int slot) {
+    	MotionConfig config = motionConfigs.get(configID);
+    	
+    	if (slotsUsed == MOTION_SLOTS) {
+    		clearMotionSlot(slot);
+    	}
+    	
+    	PID pid = config.getPID();
+    	if (pid != null) {
+    		if (pid instanceof PIDF) {
+    			loadPIDF((PIDF) pid, slot);
+    		} else {
+    			loadPID(pid, slot);
+    		}
+    	}
+    	
+    	MotionMagic mm = config.getMotionMagic();
+    	if (mm != null) {
+    		loadMotionMagic(mm, slot);
+    	}
+    	
+    	loadedMotionConfigs[slot] = configID; // very important
+    	if (slot == slotsUsed) {
+    		slotsUsed++;
+    	}
+
+        // "use" this new configuration
+        motionConfigs.get(configID).use();
+    	
+    	// no need to load control type, that is to help find
+    	// an appropriate motion configuration if necessary
+    	
+    	return slot;
+    }
     /**
      * Load in a motion configuration stored in the BBMotorController into the
      * wrapped motor controller object. Defaults to the least used slot
@@ -137,6 +209,7 @@ public abstract class BBMotorController {
         int slot;
 
         // if no slots are unused, look for least used slot to swap in a new set of constants
+        // also should be at max == but just in case...
         if (slotsUsed >= MOTION_SLOTS) {
             // to find the minimum uses and corresponding slot, first assume last one
             int minUses = motionConfigs.get(loadedMotionConfigs[loadedMotionConfigs.length - 1]).getUses();
@@ -144,7 +217,7 @@ public abstract class BBMotorController {
 
             // loop through all slots in reverse order (except for last one, already covered)
             // to try to find a smaller amount of uses
-            for (int i = loadedMotionConfigs.length - 2; i >= 0; i++) {
+            for (int i = loadedMotionConfigs.length - 2; i >= 0; i--) {
                 // number of uses for this motion configuration
                 int uses = motionConfigs.get(loadedMotionConfigs[i]).getUses();
 
@@ -159,12 +232,7 @@ public abstract class BBMotorController {
             // if haven't used all available slots, might as well load it into the motor controller
             // in the next unused slot
             slot = slotsUsed;
-            // using a new slot now
-            slotsUsed++;
         }
-
-        // "use" this new set of PID constants
-        motionConfigs.get(configID).use();
 
         // load it in now that you know which slot to use
         return loadMotionConfig(configID, slot);
@@ -183,6 +251,7 @@ public abstract class BBMotorController {
             // test for matching control type of this set of PID constants
             if (motionConfigs.get(i).getControlType() == controlType) {
                 return i;
+// haha funny FRC number 254
             }
         }
 
@@ -255,7 +324,6 @@ public abstract class BBMotorController {
      */
     public int addMotionConfiguration(MotionConfig config) {
         // get the ID to use in motionConfigs
-// haha funny FRC number 254
         int id = motionConfigs.size();
         // give it a default name
         String name = "Config" + id;
@@ -370,7 +438,16 @@ public abstract class BBMotorController {
     }
 
     public void setMeasurementToDistance(Quantity radius) {
+    	if (!radius.getUnit().isCompatible(Dimension.Length)) {
+    		return;
+    	}
+    	
         this.radius = radius;
+        
+        if (LENGTH_UNIT_PU == null) {
+        	// default to radius unit
+        	LENGTH_UNIT_PU = radius.getUnit().getNumeratorList().get(0);
+        }
 
         positionMeasurement = PositionMeasurement.Distance;
     }
@@ -563,43 +640,16 @@ public abstract class BBMotorController {
 
 
 
-    /** Configure MotionMagic parameters to use with native units */
-    protected abstract void configMotionMagic_nu(double acc, double vel, int pidSlot);
-
-    public void configMotionMagic(MotionMagic mm, int configID) {
-        Quantity vel = mm.getCruiseVelocity();
-        Quantity acc = mm.getAcceleration();
-
-        double vel_nu;
-        double acc_nu;
-
-        if (vel.getUnit().isCompatible(OMEGA_UNIT_PU)) {
-            vel_nu = vel.to(OMEGA_UNIT_NU).getValue();
-        } else {
-            vel_nu = toAngular(vel).to(OMEGA_UNIT_NU).getValue();
-        }
-
-        if (acc.getUnit().isCompatible(ALPHA_UNIT_PU)) {
-            acc_nu = acc.to(ALPHA_UNIT_PU).getValue();
-        } else {
-            acc_nu = toAngular(acc).to(ALPHA_UNIT_PU).getValue();
-        }
-
-        int slot = setMotionConfig(configID);
-
-        configMotionMagic_nu(acc_nu, vel_nu, slot);
-
-        motionMagic = mm;
-    }
-
-
-
     /**
      * Return the position read on the encoder in preferred units
      * 
      * @return position on the encoder in preferred units
      */
     public double getPosition() {
+    	if (THETA_UNIT_NU == null) {
+    		return 0;
+    	}
+    	
         Quantity theta_nu = new Quantity(getPosition_nu(), THETA_UNIT_NU);
 
         if (positionMeasurement == PositionMeasurement.Angle) {
@@ -611,6 +661,10 @@ public abstract class BBMotorController {
     }
 
     public double getPosition(BaseUnit unit) {
+    	if (THETA_UNIT_NU == null) {
+    		return 0;
+    	}
+    	
         Quantity theta_nu = new Quantity(getPosition_nu(), THETA_UNIT_NU);
 
         if (unit.getDimension() == Dimension.Length) {
