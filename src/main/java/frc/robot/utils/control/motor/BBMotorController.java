@@ -536,12 +536,17 @@ public abstract class BBMotorController {
             return;
         }
 
+        if (THETA_UNIT_NU == null) {
+            return;
+        }
+
         setMotionConfig(configID);
 
         if (positionMeasurement == PositionMeasurement.Angle) {
             Quantity quant = new Quantity(pos, THETA_UNIT_PU);
 
             cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
+        // existence of a theta unit guaranteed
         } else if (positionMeasurement == PositionMeasurement.Distance) {
             // l = r theta
             // theta = l / r and also radians are pretty rad
@@ -552,20 +557,20 @@ public abstract class BBMotorController {
     }
 
     public void cmdPosition(double pos, ControlType controlMethod, String configName) {
-        Integer pidID = motionConfigNames.get(configName);
+        Integer slotID = motionConfigNames.get(configName);
 
-        if (pidID == null) {
+        if (slotID == null) {
             return; // rip ig
         } else {
-            cmdPosition(pos, controlMethod, pidID);
+            cmdPosition(pos, controlMethod, slotID);
         }
     }
 
     public void cmdPosition(double pos, ControlType controlMethod) {
-        int idx = findMotionConfig(controlMethod);
+        int configID = findMotionConfig(controlMethod);
 
-        if (idx != -1) {
-            cmdPosition(pos, controlMethod, idx);
+        if (configID != -1) {
+            cmdPosition(pos, controlMethod, configID);
         }
     }
 
@@ -574,12 +579,17 @@ public abstract class BBMotorController {
             return;
         }
 
+        // make sure there's an actual unit to use
+        if (THETA_UNIT_NU == null) {
+            return;
+        }
+
         setMotionConfig(configID);
 
         if (quant.getUnit().isCompatible(THETA_UNIT_PU)) {
             cmdPosition_native(quant.to(THETA_UNIT_NU).getValue(), controlMethod);
-        } else if (quant.getUnit().isCompatible(LENGTH_UNIT_PU)) {
-            cmdPosition_native(quant.divide(radius).multiply(Units.RAD).to(THETA_UNIT_NU).getValue(), controlMethod);
+        } else if (LENGTH_UNIT_PU != null && quant.getUnit().isCompatible(LENGTH_UNIT_PU)) {
+            cmdPosition_native(toAngular(quant).to(THETA_UNIT_NU).getValue(), controlMethod);
         }
     }
 
@@ -594,10 +604,83 @@ public abstract class BBMotorController {
     }
 
     public void cmdPosition(Quantity quant, ControlType controlMethod) {
-        int idx = findMotionConfig(controlMethod);
+        int configID = findMotionConfig(controlMethod);
 
-        if (idx != -1) {
-            cmdPosition(quant, controlMethod, idx);
+        if (configID != -1) {
+            cmdPosition(quant, controlMethod, configID);
+        }
+    }
+
+
+
+    protected abstract void cmdVelocity_native(double vel);
+
+    public void cmdVelocity(double vel, int configID) {
+        if (OMEGA_UNIT_NU == null) {
+            return;
+        }
+
+        setMotionConfig(configID);
+
+        if (positionMeasurement == PositionMeasurement.Angle) {
+            Quantity quant = new Quantity(vel, OMEGA_UNIT_PU);
+
+            cmdVelocity_native(quant.to(OMEGA_UNIT_NU).getValue());
+        // existence of a velocity unit guaranteed
+        } else if (positionMeasurement == PositionMeasurement.Distance) {
+            Quantity quant = new Quantity(vel, VEL_UNIT_PU);
+
+            cmdVelocity_native(toAngular(quant).to(OMEGA_UNIT_NU).getValue());
+        }
+    }
+
+    public void cmdVelocity(double vel, String configName) {
+        Integer configID = motionConfigNames.get(configName);
+
+        if (configID == null) {
+            return; // rip ig
+        } else {
+            cmdVelocity(vel, configID);
+        }
+    }
+
+    public void cmdVelocity(double vel) {
+        int configID = findMotionConfig(ControlType.Velocity);
+
+        if (configID != -1) {
+            cmdVelocity(vel, configID);
+        }
+    }
+
+    public void cmdVelocity(Quantity vel, int configID) {
+        if (OMEGA_UNIT_NU == null) {
+            return;
+        }
+
+        setMotionConfig(configID);
+
+        if (vel.getUnit().isCompatible(OMEGA_UNIT_PU)) {
+            cmdVelocity_native(vel.to(OMEGA_UNIT_NU).getValue());
+        } else if (VEL_UNIT_PU != null && vel.getUnit().isCompatible(VEL_UNIT_PU)) {
+            cmdVelocity_native(toAngular(vel).to(OMEGA_UNIT_NU).getValue());
+        }
+    }
+
+    public void cmdVelocity(Quantity vel, String configName) {
+        Integer configID = motionConfigNames.get(configName);
+
+        if (configID == null) {
+            return; // rip ig
+        } else {
+            cmdVelocity(vel, configID);
+        }
+    }
+
+    public void cmdVelocity(Quantity vel) {
+        int configID = findMotionConfig(ControlType.Velocity);
+
+        if (configID != -1) {
+            cmdVelocity(vel, configID);
         }
     }
 
@@ -608,6 +691,7 @@ public abstract class BBMotorController {
     public void cmdPercent(double perc) {
         cmdPercent_native(perc);
     }
+
 
 
 

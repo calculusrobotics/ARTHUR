@@ -104,8 +104,13 @@ public class BBSparkMax extends BBMotorController {
     }
 
     @Override
+    protected void cmdVelocity_native(double vel) {
+        PID_CONTROLLER.setReference(vel, com.revrobotics.ControlType.kVelocity, slotInUse);
+    }
+
+    @Override
     public void cmdPercent_native(double perc) {
-        // TODO: why is this pid
+        // percent control under PID because RevRobotics API kinda quirky
         PID_CONTROLLER.setReference(perc, com.revrobotics.ControlType.kDutyCycle, slotInUse);
     }
 

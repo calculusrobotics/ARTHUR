@@ -89,6 +89,11 @@ public class BBTalonSRX extends BBMotorController {
     }
 
     @Override
+    protected void cmdVelocity_native(double vel) {
+        MOTOR.set(ControlMode.Velocity, (int) vel);
+    }
+
+    @Override
     public void cmdPercent_native(double perc) {
         MOTOR.set(ControlMode.PercentOutput, perc);
     }
