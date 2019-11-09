@@ -523,6 +523,8 @@ public abstract class BBMotorController {
 
 
 
+    public abstract void setInverted(boolean invert);
+
     /**
      * Command the position of the motor to a specified amount of encoder ticks
      * 
@@ -712,6 +714,7 @@ public abstract class BBMotorController {
 
 
     protected abstract void addQuadratureEncoder(QuadratureEncoder sensor);
+    public abstract void setSensorPhase(boolean phase);
 
 
 
@@ -762,13 +765,6 @@ public abstract class BBMotorController {
         } else {
             return 0; // rip
         }
-    }
-
-
-
-    public enum PositionControl {
-        Position,
-        MotionMagic
     }
 
 

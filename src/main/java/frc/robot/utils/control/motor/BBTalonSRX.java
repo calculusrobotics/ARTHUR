@@ -181,5 +181,18 @@ public class BBTalonSRX extends BBMotorController {
 
 
 
+    @Override
+    public void setInverted(boolean invert) {
+        MOTOR.setInverted(invert);
+    }
+
+    @Override
+    public void setSensorPhase(boolean phase) {
+        MOTOR.setSensorPhase(phase);
+    }
+
+
+
+
     public WPI_TalonSRX getTalonSRX() { return MOTOR; }
 }

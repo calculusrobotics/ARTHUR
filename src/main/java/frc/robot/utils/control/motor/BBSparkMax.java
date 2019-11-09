@@ -186,5 +186,19 @@ public class BBSparkMax extends BBMotorController {
 
 
 
+    @Override
+    public void setInverted(boolean invert) {
+        setInverted(invert);
+    }
+
+    @Override
+    public void setSensorPhase(boolean phase) {
+        if (encoder != null) {
+            encoder.setInverted(phase);
+        }
+    }
+
+
+
     public CANSparkMax getSparkMax() { return MOTOR; }
 }
