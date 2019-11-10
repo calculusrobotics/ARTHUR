@@ -56,6 +56,12 @@ public class Units {
     public static final Unit REV_PER_MIN_S = RPM.divide(S);
     public static final Unit REV_PER_MIN2  = RPM.divide(MIN);
 
+    // energy
+    public static final Unit J = (new UnitBuilder()).num(KG, M, M).denom(S, S).name("J").make();
+
+    // torque
+    public static final Unit Nm = new Unit(J, 1, "Nm"); // shhhhh
+
     // Momentum
     public static final Unit GB = (new UnitBuilder()).num(KG, M).denom(S).name("gb").make(); // 1 greenberg = 1 kgm/s
     
