@@ -23,6 +23,8 @@ public class BBTalonSRX extends BBMotorController {
 
 
     public BBTalonSRX(int deviceID) {
+        super(deviceID);
+
         MOTOR = new WPI_TalonSRX(deviceID);
     }
 
@@ -158,8 +160,7 @@ public class BBTalonSRX extends BBMotorController {
 
     @Override
     public double getVoltage() {
-        // TODO: getBusVoltage() or MOTOR.getMotorOutputVoltage()?
-        return MOTOR.getBusVoltage();
+        return MOTOR.getMotorOutputVoltage();
     }
 
     @Override
@@ -189,6 +190,28 @@ public class BBTalonSRX extends BBMotorController {
     @Override
     public void setSensorPhase(boolean phase) {
         MOTOR.setSensorPhase(phase);
+    }
+
+
+
+    @Override
+    public void setOpenLoopRampRate(double fullThrottleSec) {
+        MOTOR.configOpenloopRamp(fullThrottleSec);
+    }
+
+    @Override
+    public void setClosedLoopRampRate(double fullThrottleSec) {
+        MOTOR.configClosedloopRamp(fullThrottleSec);
+    }
+
+    @Override
+    public double getCurrent() {
+        return MOTOR.getOutputCurrent();
+    }
+
+    @Override
+    protected void setPosition_nu(double pos_nu) {
+        MOTOR.setSelectedSensorPosition((int) Math.round(pos_nu));
     }
 
 

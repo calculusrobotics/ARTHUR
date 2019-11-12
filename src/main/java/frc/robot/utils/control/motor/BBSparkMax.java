@@ -34,6 +34,8 @@ public class BBSparkMax extends BBMotorController {
 
 
     public BBSparkMax(int deviceID, MotorType type) {
+        super(deviceID);
+
         MOTOR = new CANSparkMax(deviceID, type);
 
         PID_CONTROLLER = MOTOR.getPIDController();
@@ -196,6 +198,28 @@ public class BBSparkMax extends BBMotorController {
         if (encoder != null) {
             encoder.setInverted(phase);
         }
+    }
+
+
+
+    @Override
+    public void setOpenLoopRampRate(double fullThrottleSec) {
+        MOTOR.setOpenLoopRampRate(fullThrottleSec);
+    }
+
+    @Override
+    public void setClosedLoopRampRate(double fullThrottleSec) {
+        MOTOR.setClosedLoopRampRate(fullThrottleSec);
+    }
+
+    @Override
+    public double getCurrent() {
+        return MOTOR.getOutputCurrent();
+    }
+
+    @Override
+    protected void setPosition_nu(double pos_nu) {
+        encoder.setPosition(pos_nu);
     }
 
 

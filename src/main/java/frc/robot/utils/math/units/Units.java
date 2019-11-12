@@ -76,6 +76,7 @@ public class Units {
 
     // Voltage
     public static final Unit V = (new UnitBuilder()).num(KG, M, M).denom(S, S, S, A).make();
+    public static final Unit CTRE_VOLTAGE = new Unit(V, 12.2/1023.0, "CTRE Voltage"); // 1023 voltage units = 12.2V approx
 
     // Resistance
     // Java doesn't support Ω as a variable name

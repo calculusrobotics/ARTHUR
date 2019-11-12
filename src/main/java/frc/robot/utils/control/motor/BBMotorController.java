@@ -50,6 +50,20 @@ import java.util.HashMap;
  * provided functional PID(F) or do we want to experiment with state-space?
  */
 public abstract class BBMotorController {
+    private final int DEVICE_ID;
+    public BBMotorController(int deviceID) {
+        DEVICE_ID = deviceID;
+    }
+
+
+
+    public int getDeviceID() {
+        return DEVICE_ID;
+    }
+
+
+
+
     /*
      * NOTE: traditionally, you put all fields and enums before all methods.
      * This will not be the case in this class - it is written in a way that makes sense
@@ -767,6 +781,32 @@ public abstract class BBMotorController {
         }
     }
 
+    
+
+
+
+    protected abstract void setPosition_nu(double pos_nu);
+
+    public void setPosition(double pos_pu) {
+        if (positionMeasurement == PositionMeasurement.Angle) {
+            setPosition_nu((new Quantity(pos_pu, THETA_UNIT_PU)).to(THETA_UNIT_NU).getValue());
+        } else {
+            setPosition_nu(toAngular(new Quantity(pos_pu, LENGTH_UNIT_PU)).to(THETA_UNIT_NU).getValue());
+        }
+    }
+
+    public void setPosition(Quantity quant) {
+        if (quant.getUnit().isCompatible(Dimension.Angle)) {
+            setPosition_nu(quant.to(THETA_UNIT_NU).getValue());
+        } else if (quant.getUnit().isCompatible(LENGTH_UNIT_PU)) {
+            setPosition_nu(toAngular(quant).to(THETA_UNIT_NU).getValue());
+        }
+    }
+
+    public void zero() {
+        setPosition_nu(0);
+    }
+
 
 
     /**
@@ -793,6 +833,11 @@ public abstract class BBMotorController {
 
 
 
+    public abstract void setOpenLoopRampRate(double fullThrottleSec);
+    public abstract void setClosedLoopRampRate(double fullThrottleSec);
+
+
+
     /**
      * Set the position in revolutions (OF ENCODER - not necessarily of thing being controller). 
      */
@@ -805,6 +850,8 @@ public abstract class BBMotorController {
 
     /** Get the percentage (0 to 1) of the robot's voltage that is seen by the motor controller*/
     public abstract double getPercentVoltage();
+
+    public abstract double getCurrent();
 
 
 

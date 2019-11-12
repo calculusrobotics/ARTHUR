@@ -13,8 +13,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import frc.robot.utils.control.encoder.QuadratureEncoder;
 import frc.robot.utils.control.motor.BBTalonSRX;
-
+import frc.robot.utils.control.statespace.modeling.ildata.ILData;
 import frc.robot.utils.math.units.Units;
+import frc.robot.utils.roborio.RoboRIOFS;
 import frc.robot.utils.math.units.Quantity;
 
 /**
@@ -53,6 +54,9 @@ public class Robot extends TimedRobot {
         talon = new BBTalonSRX(2);
         talon.setRadius(new Quantity(2, Units.IN));
         talon.addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
+
+
+        RoboRIOFS.init();
 
         // PID constants = new PID(
         //     ControlType.PID,
@@ -110,6 +114,12 @@ public class Robot extends TimedRobot {
         // Put default auto code here
             break;
         }
+    }
+
+    @Override
+    public void teleopInit() {
+        ILData ilData = new ILData(talon, 0.3);
+        ilData.run();
     }
 
     /**
