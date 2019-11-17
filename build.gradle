@@ -49,6 +49,11 @@ dependencies {
     compile wpi.deps.vendor.java()
     nativeZip wpi.deps.vendor.jni(wpi.platforms.roborio)
     nativeDesktopZip wpi.deps.vendor.jni(wpi.platforms.desktop)
+
+    // other libraries we use (that aren't wpi based)
+    // ejml: Efficient Java Matrix Library, for dealing with linear algebra
+    compile "org.ejml:ejml-all:0.38"
+
     testCompile 'junit:junit:4.12'
 }
 

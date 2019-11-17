@@ -861,6 +861,17 @@ public abstract class BBMotorController {
 
 
 
+    public void setSI() {
+        setMeasurementToAngle();
+        setThetaUnit(Units.RAD);
+        setTimeUnit(Units.S);
+        setSecondTimeUnit(Units.S);
+    }
+
+
+
+
+
 
 
 

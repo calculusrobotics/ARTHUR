@@ -1,12 +1,10 @@
 package frc.robot.utils.control.statespace.modeling.ildata;
 
 import frc.robot.utils.control.motor.BBMotorController;
-import frc.robot.utils.control.statespace.Motors;
 import frc.robot.utils.math.units.Units;
 import frc.robot.utils.roborio.RoboRIOFS;
 import edu.wpi.first.wpilibj.Notifier;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.FileWriter;
 import java.io.PrintWriter;
@@ -82,10 +80,7 @@ public class ILData {
 
 
 
-        MOTOR.setMeasurementToAngle();
-        MOTOR.setThetaUnit(Units.RAD);
-        MOTOR.setTimeUnit(Units.S);
-        MOTOR.setSecondTimeUnit(Units.S);
+        MOTOR.setSI();
         MOTOR.setInverted(false);
         MOTOR.setSensorPhase(false);
         MOTOR.setOpenLoopRampRate(0);
