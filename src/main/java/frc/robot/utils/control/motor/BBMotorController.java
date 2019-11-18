@@ -251,6 +251,7 @@ public abstract class BBMotorController {
         // load it in now that you know which slot to use
         return loadMotionConfig(configID, slot);
     }
+// haha funny FRC number 254
 
     /**
      * Find a motion configuration by provided control type
@@ -265,7 +266,6 @@ public abstract class BBMotorController {
             // test for matching control type of this set of PID constants
             if (motionConfigs.get(i).getControlType() == controlType) {
                 return i;
-// haha funny FRC number 254
             }
         }
 

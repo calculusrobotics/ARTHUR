@@ -7,6 +7,8 @@
 
 package frc.robot;
 
+import com.ctre.phoenix.motorcontrol.VelocityMeasPeriod;
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -33,7 +35,8 @@ public class Robot extends TimedRobot {
 
 
 
-    private BBTalonSRX talon;
+    private BBTalonSRX[] talon = new BBTalonSRX[4];
+    private ILData[] ilData = new ILData[4];
 
 
 
@@ -46,14 +49,21 @@ public class Robot extends TimedRobot {
         m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
         m_chooser.addOption("My Auto", kCustomAuto);
         SmartDashboard.putData("Auto choices", m_chooser);
+        SmartDashboard.putBoolean("spin", false);
 
 
 
 
 
-        talon = new BBTalonSRX(2);
-        talon.setRadius(new Quantity(2, Units.IN));
-        talon.addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
+        for (int i = 0; i < 4; i++) {
+            talon[i] = new BBTalonSRX(i + 1);
+            talon[i].setRadius(new Quantity(2, Units.IN));
+            talon[i].addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
+
+            talon[i].getTalonSRX().configVelocityMeasurementPeriod(VelocityMeasPeriod.Period_1Ms);
+
+            ilData[i] = new ILData(talon[i], 0.75);
+        }
 
 
         RoboRIOFS.init();
@@ -97,7 +107,6 @@ public class Robot extends TimedRobot {
     public void autonomousInit() {
         m_autoSelected = m_chooser.getSelected();
         // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-        System.out.println("Auto selected: " + m_autoSelected);
     }
 
     /**
@@ -118,8 +127,9 @@ public class Robot extends TimedRobot {
 
     @Override
     public void teleopInit() {
-        ILData ilData = new ILData(talon, 0.3);
-        ilData.run();
+        for (int i = 0; i < 4; i++) {
+            ilData[i].run();
+        }
     }
 
     /**
@@ -127,7 +137,12 @@ public class Robot extends TimedRobot {
      */
     @Override
     public void teleopPeriodic() {
-        System.out.println(talon.getPosition_nu());
+        boolean spin = SmartDashboard.getBoolean("spin", false);
+        /*if (spin) {
+            talon.cmdPercent(0.2);
+        } else {
+            talon.cmdPercent(0);
+        }*/
 
     }
 

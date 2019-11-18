@@ -1,11 +1,12 @@
 package frc.robot.utils.control.statespace.modeling.ildata;
 
 import frc.robot.utils.control.motor.BBMotorController;
-import frc.robot.utils.math.units.Units;
 import frc.robot.utils.roborio.RoboRIOFS;
 import edu.wpi.first.wpilibj.Notifier;
+import edu.wpi.first.wpilibj.Timer;
 
 import java.io.IOException;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.PrintWriter;
 
@@ -17,21 +18,23 @@ import java.io.PrintWriter;
  * having no gear ratios or load.
  */
 public class ILData {
-    private static final double PERIOD_SEC = 0.005; // periodt
+    private static final double PERIOD_SEC = 0.01; // periodt
 
-    private static final int MEASUREMENTS_PER_TRIAL = 30;
+    private static final int MEASUREMENTS_PER_TRIAL = 100;
     private static final int TRIALS = 10;
 
 
 
     public static class DataPoint {
+        private final double TIME0;
         private final double THETA;
         private final double OMEGA;
         private final double CURRENT;
         private final double CURRENT_DERIV;
         private final double VOLTAGE;
 
-        private DataPoint(double theta, double omega, double current, double currentDeriv, double voltage) {
+        private DataPoint(double time0, double theta, double omega, double current, double currentDeriv, double voltage) {
+            TIME0 = time0;
             THETA = theta;
             OMEGA = omega;
             CURRENT = current;
@@ -40,7 +43,7 @@ public class ILData {
         }
 
         public String toString() {
-            return THETA + " " + OMEGA + " " + CURRENT + " " + CURRENT_DERIV + " " + VOLTAGE;
+            return TIME0 + " " + THETA + " " + OMEGA + " " + CURRENT + " " + CURRENT_DERIV + " " + VOLTAGE;
         }
     }
 
@@ -67,7 +70,7 @@ public class ILData {
 
 
     // measurement stuff
-    private double lastVoltage = -1;
+    private double time0;
     private double lastCurrent = 0;
     private DataPoint[] dataPoints = new DataPoint[MEASUREMENTS_PER_TRIAL];
     private int measurementNum = 0;
@@ -85,6 +88,13 @@ public class ILData {
         MOTOR.setSensorPhase(false);
         MOTOR.setOpenLoopRampRate(0);
         MOTOR.zero();
+
+
+
+        File motorFile = new File(RoboRIOFS.MOTOR_DATA_NAME + MOTOR.getDeviceID() + "/");
+        if (!motorFile.exists()) {
+            motorFile.mkdir();
+        }
     }
 
 
@@ -98,6 +108,17 @@ public class ILData {
 
     private void writeMeasurements() {
         String pathName = RoboRIOFS.MOTOR_DATA_NAME + MOTOR.getDeviceID() + "/trial" + trialNum + ".txt";
+
+        File file = new File(pathName);
+
+        if (!file.exists()) {
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                System.out.println("Couldn'tcreatefile");
+            }
+        }
+
         try {
             FileWriter fileWriter = new FileWriter(pathName);
             PrintWriter writer = new PrintWriter(fileWriter);
@@ -107,7 +128,9 @@ public class ILData {
             }
 
             writer.close();
-        } catch (IOException e) {}
+        } catch (IOException e) {
+            System.out.println("Error: " + e);
+        }
     }
 
 
@@ -116,22 +139,20 @@ public class ILData {
         @Override
         public void run() {
             if (state == State.Measurement) {
+                MOTOR.cmdPercent(PERCENT);
+
                 double voltage = MOTOR.getVoltage();
-
-                if (lastVoltage == -1) {
-                    lastVoltage = voltage;
-                }
-
-                if (voltage != lastVoltage) {
-                    // rip
-                }
 
                 double theta = MOTOR.getPosition();
                 double omega = MOTOR.getVelocity();
                 double current = MOTOR.getCurrent();
                 double currentDeriv = (current - lastCurrent) / PERIOD_SEC;
 
-                DataPoint dp = new DataPoint(theta, omega, current, currentDeriv, voltage);
+                lastCurrent = current; // set the last current to the current current
+
+                double time = Timer.getFPGATimestamp() - time0;
+
+                DataPoint dp = new DataPoint(time, theta, omega, current, currentDeriv, voltage);
                 dataPoints[measurementNum] = dp;
 
                 measurementNum++;
@@ -143,7 +164,6 @@ public class ILData {
                     MOTOR.cmdPercent(0); // rest the motor
                     state = State.Rest;
 
-                    lastVoltage = -1;
                     lastCurrent = 0;
                     measurementNum = 0;
                 }
@@ -152,12 +172,18 @@ public class ILData {
                 double current = MOTOR.getCurrent();
                 double voltage = MOTOR.getVoltage();
 
-                if (omega == 0 && current == 0 && voltage == 0) {
+                System.out.println("Voltage: " + voltage);
+
+                if (omega == 0 && voltage == 0) {
                     if (trialNum == TRIALS) {
                         notifier.stop();
                     } else {
+                        time0 = Timer.getFPGATimestamp();
+
                         MOTOR.zero();
                         MOTOR.cmdPercent(PERCENT);
+
+                        state = State.Measurement;
                     }
                 }
             }
