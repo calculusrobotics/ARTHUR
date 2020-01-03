@@ -18,9 +18,9 @@ import java.io.PrintWriter;
  * having no gear ratios or load.
  */
 public class ILData {
-    private static final double PERIOD_SEC = 0.01; // periodt
+    private static final double PERIOD_SEC = 0.005; // periodt
 
-    private static final int MEASUREMENTS_PER_TRIAL = 100;
+    private static final int MEASUREMENTS_PER_TRIAL = 300;
     private static final int TRIALS = 10;
 
 
@@ -174,7 +174,7 @@ public class ILData {
 
                 System.out.println("Voltage: " + voltage);
 
-                if (omega == 0 && voltage == 0) {
+                if (omega == 0 && voltage == 0 && current == 0.125) {
                     if (trialNum == TRIALS) {
                         notifier.stop();
                     } else {

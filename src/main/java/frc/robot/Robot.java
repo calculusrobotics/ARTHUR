@@ -7,6 +7,7 @@
 
 package frc.robot;
 
+import com.ctre.phoenix.motorcontrol.StatusFrameEnhanced;
 import com.ctre.phoenix.motorcontrol.VelocityMeasPeriod;
 
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -61,6 +62,7 @@ public class Robot extends TimedRobot {
             talon[i].addEncoder(new QuadratureEncoder(QuadratureEncoder.EncoderType.AMT));
 
             talon[i].getTalonSRX().configVelocityMeasurementPeriod(VelocityMeasPeriod.Period_1Ms);
+            talon[i].getTalonSRX().setStatusFramePeriod(StatusFrameEnhanced.Status_8_PulseWidth, 10);
 
             ilData[i] = new ILData(talon[i], 0.75);
         }
